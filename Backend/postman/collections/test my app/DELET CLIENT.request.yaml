@@ -1,0 +1,7 @@
+$kind: http-request
+url: http://localhost:8080/api/clients/2
+method: DELETE
+body:
+  type: json
+  content: ""
+order: 4466736406132023

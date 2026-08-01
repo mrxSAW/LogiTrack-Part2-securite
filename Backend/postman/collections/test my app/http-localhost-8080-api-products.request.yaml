@@ -1,0 +1,18 @@
+$kind: http-request
+name: http://localhost:8080/api/products
+url: http://localhost:8080/api/products
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \ \"nom\":\"iphon\",\r
+
+    \ \"categorie\":\"smartphone\",\r
+
+    \ \"prix\": 1000,\r
+
+    \ \"quantiteStock\":12   \r
+
+    }"
+order: 1774453460237
