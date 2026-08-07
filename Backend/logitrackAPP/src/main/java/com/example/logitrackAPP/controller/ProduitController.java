@@ -3,6 +3,7 @@ package com.example.logitrackAPP.controller;
 import com.example.logitrackAPP.model.Produit;
 import com.example.logitrackAPP.service.ProduitService;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,10 +33,10 @@ public class ProduitController {
         return service.afficherTous();
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','AGENT', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'AGENT', 'MANAGER')")
     @GetMapping("/{id}")
     public Produit get(@PathVariable Long id) {
-        return service.getById(id).orElse(null);
+        return service.getById(id);
     }
 
 
@@ -64,14 +65,14 @@ public class ProduitController {
         return service.getByPrix(prix);
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','AGENT', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @GetMapping("/low-stock")
     public List<Produit> lowStock() {
         return service.getLowStock();
     }
 
 
-    @PreAuthorize("hasAnyRole('ADMIN','AGENT', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @GetMapping("/top")
     public List<String> topProduct() {
         return service.getTopProduct();
@@ -88,8 +89,7 @@ public class ProduitController {
 
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'AGENT')")
     @GetMapping("/page")
-    public Page<Produit> afficherAvecPagination(Pageable pageable) {
+    public Page<Produit> afficherAvecPagination(@ParameterObject Pageable pageable) {
         return service.afficherAvecPagination(pageable);
     }
-
 }

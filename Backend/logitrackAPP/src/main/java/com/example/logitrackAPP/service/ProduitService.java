@@ -1,13 +1,13 @@
 package com.example.logitrackAPP.service;
 
+import com.example.logitrackAPP.exception.ResourceNotFoundException;
 import com.example.logitrackAPP.model.Produit;
 import com.example.logitrackAPP.repository.ProduitRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import org.springframework.data.domain.Pageable;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ProduitService {
@@ -26,14 +26,30 @@ public class ProduitService {
         return repository.findAll();
     }
 
-    public Optional<Produit> getById(Long id) {
-        return repository.findById(id);
+    public Produit getById(Long id) {
+
+        return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Produit non trouvé"));
+    }
+
+
+    public Produit modifier(Long id, Produit nouveauProduit) {
+
+        Produit produitExistant = getById(id);
+
+        produitExistant.setNom(nouveauProduit.getNom());
+        produitExistant.setCategorie(nouveauProduit.getCategorie());
+        produitExistant.setPrix(nouveauProduit.getPrix());
+        produitExistant.setQuantiteStock(nouveauProduit.getQuantiteStock());
+
+        return repository.save(produitExistant);
     }
 
     public void supprimer(Long id) {
-        repository.deleteById(id);
-    }
 
+        Produit produit = getById(id);
+
+        repository.delete(produit);
+    }
 
     public List<Produit> getByCategorie(String categorie) {
         return repository.findByCategorie(categorie);
@@ -51,24 +67,6 @@ public class ProduitService {
         return repository.findTopProduct();
     }
 
-
-    public Produit modifier(Long id, Produit nouveauProduit) {
-
-        Produit produitExistant = repository.findById(id).orElseThrow(() ->
-                        new RuntimeException("Produit non trouvé")
-                );
-
-        produitExistant.setNom(nouveauProduit.getNom());
-        produitExistant.setCategorie(nouveauProduit.getCategorie());
-        produitExistant.setPrix(nouveauProduit.getPrix());
-        produitExistant.setQuantiteStock(
-                nouveauProduit.getQuantiteStock()
-        );
-
-        return repository.save(produitExistant);
-    }
-
-
     public List<Produit> rechercher(String motCle) {
 
         if (motCle == null || motCle.trim().isEmpty()) {
@@ -77,13 +75,14 @@ public class ProduitService {
 
         String recherche = motCle.trim();
 
-        return repository.findByNomContainingIgnoreCaseOrCategorieContainingIgnoreCase(
-                        recherche, recherche
-                );
+        return repository.findByNomContainingIgnoreCaseOrCategorieContainingIgnoreCase(recherche, recherche);
     }
 
     public Page<Produit> afficherAvecPagination(Pageable pageable) {
         return repository.findAll(pageable);
     }
+
+
+
 
 }

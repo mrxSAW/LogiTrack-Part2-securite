@@ -3,6 +3,7 @@ package com.example.logitrackAPP.controller;
 import com.example.logitrackAPP.model.Client;
 import com.example.logitrackAPP.service.ClientService;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -60,7 +61,7 @@ public class ClientController {
 
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'AGENT')")
     @GetMapping("/page")
-    public Page<Client> afficherAvecPagination(Pageable pageable) {
+    public Page<Client> afficherAvecPagination(@ParameterObject Pageable pageable) {
         return service.afficherAvecPagination(pageable);
     }
 }

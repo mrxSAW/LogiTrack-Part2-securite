@@ -6,6 +6,7 @@ import com.example.logitrackAPP.model.Commande;
 import com.example.logitrackAPP.model.StatutCommande;
 import com.example.logitrackAPP.service.CommandeService;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -60,6 +61,7 @@ public class CommandeController {
     }
 
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @GetMapping("/count")
     public long count() {
         return service.countCommandes();
@@ -76,11 +78,19 @@ public class CommandeController {
 
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'AGENT')")
     @GetMapping("/page")
-    public Page<Commande> afficherAvecPagination(Pageable pageable) {
+    public Page<Commande> afficherAvecPagination(@ParameterObject Pageable pageable) {
         return service.afficherAvecPagination(pageable);
     }
 
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> supprimer(@PathVariable Long id) {
+
+        service.supprimer(id);
+
+        return ResponseEntity.noContent().build();
+    }
 
 
 }

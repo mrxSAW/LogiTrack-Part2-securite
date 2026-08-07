@@ -1,14 +1,25 @@
 package com.example.logitrackAPP.service;
 
 import com.example.logitrackAPP.dto.AjouterProduitCommandeRequest;
-import com.example.logitrackAPP.model.*;
-import com.example.logitrackAPP.repository.*;
+import com.example.logitrackAPP.exception.BusinessException;
+import com.example.logitrackAPP.exception.ResourceNotFoundException;
+import com.example.logitrackAPP.model.Client;
+import com.example.logitrackAPP.model.Commande;
+import com.example.logitrackAPP.model.LigneCommande;
+import com.example.logitrackAPP.model.Produit;
+import com.example.logitrackAPP.model.StatutCommande;
+import com.example.logitrackAPP.repository.ClientRepository;
+import com.example.logitrackAPP.repository.CommandeRepository;
+import com.example.logitrackAPP.repository.LigneCommandeRepository;
+import com.example.logitrackAPP.repository.ProduitRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.List;import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class CommandeService {
@@ -16,112 +27,144 @@ public class CommandeService {
     private final CommandeRepository repository;
     private final ClientRepository clientRepository;
     private final ProduitRepository produitRepository;
-    private final LigneCommandeRepository ligneCommandeRepository;
+    private final LigneCommandeRepository ligneRepository;
 
-    public CommandeService(CommandeRepository repository, ClientRepository clientRepository, ProduitRepository produitRepository, LigneCommandeRepository ligneCommandeRepository) {
+    public CommandeService(
+            CommandeRepository repository,
+            ClientRepository clientRepository,
+            ProduitRepository produitRepository,
+            LigneCommandeRepository ligneRepository
+    ) {
         this.repository = repository;
         this.clientRepository = clientRepository;
         this.produitRepository = produitRepository;
-        this.ligneCommandeRepository = ligneCommandeRepository;
+        this.ligneRepository = ligneRepository;
     }
-
 
     public Commande createOrder(Long clientId) {
 
-        Client client = clientRepository.findById(clientId).orElseThrow(() -> new RuntimeException("Client non trouvé"));
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Client non trouvé"
+                        )
+                );
 
         Commande commande = new Commande();
         commande.setClient(client);
         commande.setStatut(StatutCommande.EN_ATTENTE);
         commande.setDateCommande(LocalDate.now());
+        commande.setLignes(new ArrayList<>());
 
         return repository.save(commande);
     }
 
-
-
-
     @Transactional
     public Commande ajouterProduit(Long orderId, AjouterProduitCommandeRequest request) {
 
-
         if (request == null) {
-            throw new RuntimeException("Les informations du produit sont obligatoires");
-        }
-
-
-        if (request.getProduitId() == null) {
-            throw new RuntimeException("L'identifiant du produit est obligatoire");
-        }
-
-
-        if (request.getQuantite() <= 0) { throw new RuntimeException(
-                    "La quantité doit être supérieure à zéro"
-            );}
-
-
-        Commande commande = repository.findById(orderId).orElseThrow(() ->
-                        new RuntimeException("Commande non trouvée")
-                );
-
-        if (commande.getStatut() != StatutCommande.EN_ATTENTE) { throw new RuntimeException(
-                    "Impossible d'ajouter un produit : la commande n'est plus en attente"
+            throw new BusinessException(
+                    "Les informations sont obligatoires"
             );
         }
 
-        Produit produit = produitRepository.findById(request.getProduitId()).orElseThrow(() ->
-                        new RuntimeException("Produit non trouvé")
+        if (request.getProduitId() == null) {
+            throw new BusinessException(
+                    "L'identifiant du produit est obligatoire"
+            );
+        }
+
+        if (request.getQuantite() <= 0) {
+            throw new BusinessException(
+                    "La quantité doit être supérieure à zéro"
+            );
+        }
+
+        Commande commande = trouverCommande(orderId);
+
+        if (commande.getStatut()
+                != StatutCommande.EN_ATTENTE) {
+
+            throw new BusinessException(
+                    "La commande n'est plus en attente"
+            );
+        }
+
+        Produit produit = produitRepository
+                .findById(request.getProduitId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Produit non trouvé"
+                        )
                 );
 
-        if (produit.getQuantiteStock() < request.getQuantite()) { throw new RuntimeException(
+        if (produit.getQuantiteStock() < request.getQuantite()) {
+
+            throw new BusinessException(
                     "Stock insuffisant. Stock disponible : "
                             + produit.getQuantiteStock()
             );
         }
 
-        int nouveauStock = produit.getQuantiteStock() - request.getQuantite();
-
-        produit.setQuantiteStock(nouveauStock);
+        produit.setQuantiteStock( produit.getQuantiteStock() - request.getQuantite());
 
         produitRepository.save(produit);
 
-
         LigneCommande ligne = new LigneCommande();
-
         ligne.setCommande(commande);
         ligne.setProduit(produit);
         ligne.setQuantite(request.getQuantite());
 
-        ligneCommandeRepository.save(ligne);
+        ligneRepository.save(ligne);
+
+        if (commande.getLignes() == null) {
+            commande.setLignes(new ArrayList<>());
+        }
+
+        commande.getLignes().add(ligne);
 
         return commande;
     }
 
-
     public List<Commande> afficherToutes() {
-        return repository.findAll();
+        return repository.findAllBy();
     }
-
 
     public Commande getById(Long id) {
-        return repository.findById(id).orElseThrow(() -> new RuntimeException("Commande non trouvée"));
+        return trouverCommande(id);
     }
 
+    public Commande changerStatut( Long id, StatutCommande nouveauStatut) {
 
-    public Commande changerStatut(Long id, StatutCommande statut) {
+        Commande commande = trouverCommande(id);
 
-        Commande commande = repository.findById(id).orElseThrow(() -> new RuntimeException("Commande non trouvée"));
+        StatutCommande statutActuel = commande.getStatut();
 
-        commande.setStatut(statut);
+        if (statutActuel == nouveauStatut) {
+            return commande;
+        }
+
+        boolean transitionValide = statutActuel == StatutCommande.EN_ATTENTE && nouveauStatut == StatutCommande.EXPEDIEE;
+
+        transitionValide = transitionValide || statutActuel == StatutCommande.EXPEDIEE && nouveauStatut == StatutCommande.LIVREE;
+
+        if (!transitionValide) {
+            throw new BusinessException(
+                    "Transition de statut interdite : "
+                            + statutActuel
+                            + " vers "
+                            + nouveauStatut
+            );
+        }
+
+        commande.setStatut(nouveauStatut);
 
         return repository.save(commande);
     }
 
-
     public long countCommandes() {
         return repository.count();
     }
-
 
     public List<Commande> filtrer(Long clientId, StatutCommande statut) {
 
@@ -137,15 +180,42 @@ public class CommandeService {
             return repository.findByStatut(statut);
         }
 
-        return repository.findAll();
+        return repository.findAllBy();
     }
-
-
 
     public Page<Commande> afficherAvecPagination(Pageable pageable) {
-        return repository.findAll(pageable);
+        return repository.findAllBy(pageable);
     }
 
+    private Commande trouverCommande(Long id) {
+
+        return repository.findOneById(id).orElseThrow(() -> new ResourceNotFoundException(
+                                "Commande non trouvée"
+                        )
+                );
+    }
+
+
+    @Transactional
+    public void supprimer(Long id) {
+
+        Commande commande = trouverCommande(id);
+
+
+        if (commande.getStatut() == StatutCommande.EN_ATTENTE) {
+
+            for (LigneCommande ligne : commande.getLignes()) {
+
+                Produit produit = ligne.getProduit();
+
+                produit.setQuantiteStock(produit.getQuantiteStock() + ligne.getQuantite());
+
+                produitRepository.save(produit);
+            }
+        }
+
+        repository.delete(commande);
+    }
 
 
 

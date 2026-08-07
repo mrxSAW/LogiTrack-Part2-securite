@@ -1,6 +1,8 @@
 package com.example.logitrackAPP.service;
 
 import com.example.logitrackAPP.dto.auth.UserResponse;
+import com.example.logitrackAPP.exception.BusinessException;
+import com.example.logitrackAPP.exception.ResourceNotFoundException;
 import com.example.logitrackAPP.model.Role;
 import com.example.logitrackAPP.model.User;
 import com.example.logitrackAPP.repository.UserRepository;
@@ -19,10 +21,32 @@ public class UserService {
 
     public List<UserResponse> afficherTous() {
 
-        return userRepository.findAll()
-                .stream()
-                .map(this::convertirEnResponse)
-                .toList();
+        return userRepository.findAll().stream().map(this::convertirEnResponse).toList();
+    }
+
+    public UserResponse modifierRole(Long id, Role nouveauRole) {
+
+        User user = trouverUtilisateur(id);
+
+        if (nouveauRole == null) {throw new BusinessException( "Le rôle est obligatoire");}
+
+        user.setRole(nouveauRole);
+
+        User utilisateurModifie = userRepository.save(user);
+
+        return convertirEnResponse(utilisateurModifie);
+    }
+
+    public void supprimer(Long id) {
+
+        User user = trouverUtilisateur(id);
+
+        userRepository.delete(user);
+    }
+
+    private User trouverUtilisateur(Long id) {
+
+        return userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
     }
 
     private UserResponse convertirEnResponse(User user) {
@@ -35,32 +59,6 @@ public class UserService {
                 user.getRole()
         );
     }
-
-
-
-    public UserResponse modifierRole(Long id, Role nouveauRole) {
-
-        User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("Utilisateur non trouvé")
-        );
-
-        if (nouveauRole == null) {throw new RuntimeException("Le rôle est obligatoire");}
-
-        user.setRole(nouveauRole);
-
-        User utilisateurModifie = userRepository.save(user);
-
-        return convertirEnResponse(utilisateurModifie);
-    }
-
-
-
-    public void supprimer(Long id) {
-
-        User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
-
-        userRepository.delete(user);
-    }
-
 
 
 

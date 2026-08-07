@@ -1,9 +1,10 @@
 package com.example.logitrackAPP.service;
 
+import com.example.logitrackAPP.exception.ResourceNotFoundException;
 import com.example.logitrackAPP.model.Client;
 import com.example.logitrackAPP.repository.ClientRepository;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -11,61 +12,61 @@ import java.util.List;
 @Service
 public class ClientService {
 
-    private final ClientRepository repo;
+    private final ClientRepository repository;
 
-    public ClientService(ClientRepository repo) {
-        this.repo = repo;
+    public ClientService(ClientRepository repository) {
+        this.repository = repository;
     }
 
-    public Client save(Client c) {
-        return repo.save(c);
+    public Client save(Client client) {
+        return repository.save(client);
     }
 
     public List<Client> getAll() {
-        return repo.findAll();
+        return repository.findAll();
     }
 
     public Client getById(Long id) {
-        return repo.findById(id).orElseThrow();
+        return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Client non trouvé"));
     }
-
-    public void delete(Long id) {
-        repo.deleteById(id);
-    }
-
-
 
     public Client update(Long id, Client nouveauClient) {
 
-        Client clientExistant = repo.findById(id).orElseThrow(() -> new RuntimeException("Client non trouvé"));
+        Client clientExistant = getById(id);
 
         clientExistant.setNom(nouveauClient.getNom());
         clientExistant.setEmail(nouveauClient.getEmail());
-        clientExistant.setTelephone(
-                nouveauClient.getTelephone()
-        );
+        clientExistant.setTelephone(nouveauClient.getTelephone());
         clientExistant.setVille(nouveauClient.getVille());
 
-        return repo.save(clientExistant);
+        return repository.save(clientExistant);
     }
 
+    public void delete(Long id) {
+
+        Client client = getById(id);
+
+        repository.delete(client);
+    }
 
     public List<Client> rechercher(String motCle) {
 
         if (motCle == null || motCle.trim().isEmpty()) {
-            return repo.findAll();
+            return repository.findAll();
         }
 
         String recherche = motCle.trim();
 
-        return repo.findByNomContainingIgnoreCaseOrEmailContainingIgnoreCaseOrVilleContainingIgnoreCase(
-                        recherche, recherche, recherche
-                );
-    }
+        return repository.findByNomContainingIgnoreCaseOrEmailContainingIgnoreCaseOrVilleContainingIgnoreCase(
 
+                recherche, recherche, recherche);
+    }
 
     public Page<Client> afficherAvecPagination(Pageable pageable) {
-        return repo.findAll(pageable);
+        return repository.findAll(pageable);
     }
+
+
+
 
 }
