@@ -1,56 +1,90 @@
 import { useState } from 'react'
+
 import api from '../api/axiosInstance'
 import AuthContext from './AuthContext'
 
-function recupererUtilisateur() {
-  const utilisateurEnregistre = localStorage.getItem('user')
+function getSavedUser() {
+  const savedUser = localStorage.getItem('user')
 
-  if (!utilisateurEnregistre) { return null}
+  if (!savedUser) {
+    return null
+  }
 
-  try { return JSON.parse(utilisateurEnregistre) } 
-  catch {
+  try {
+    return JSON.parse(savedUser)
+  } catch {
     localStorage.removeItem('user')
     localStorage.removeItem('token')
+
     return null
   }
 }
 
 export default function AuthProvider({ children }) {
-  const [user, setUser] = useState(recupererUtilisateur)
+  const [user, setUser] = useState(getSavedUser)
 
   async function login(credentials) {
-    const response = await api.post('/api/auth/login', credentials)
-    const { token, user: utilisateur } = response.data
+    const response = await api.post(
+      '/api/auth/login',
+      credentials
+    )
+
+    const token = response.data.token
+    const connectedUser = response.data.user
 
     localStorage.setItem('token', token)
-    localStorage.setItem('user', JSON.stringify(utilisateur))
 
-    setUser(utilisateur)
+    localStorage.setItem(
+      'user',
+      JSON.stringify(connectedUser)
+    )
 
-    return utilisateur
+    setUser(connectedUser)
+
+    return connectedUser
   }
 
-  async function register(donnees) {
-    const response = await api.post('/api/auth/register', donnees)
+  async function register(userData) {
+    const response = await api.post(
+      '/api/auth/register',
+      userData
+    )
+
     return response.data
   }
 
   function logout() {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+
     setUser(null)
   }
 
-  function hasRole(...roles) {
-    return user !== null && roles.includes(user.role)
+  function hasRole(...allowedRoles) {
+    if (!user) {
+      return false
+    }
+
+    return allowedRoles.includes(user.role)
   }
 
-  const isAuthenticated =
-    user !== null && localStorage.getItem('token') !== null
+  const token = localStorage.getItem('token')
 
-    return (
-    <AuthContext.Provider
-      value={{ user,isAuthenticated,login, register,logout,hasRole,}} >
+  const isAuthenticated =
+    user !== null && token !== null
+
+  const authValues = {
+    user,
+    isAuthenticated,
+    login,
+    register,
+    logout,
+    hasRole,
+  }
+
+  return (
+    <AuthContext.Provider value={authValues}>
       {children}
-    </AuthContext.Provider>  )
+    </AuthContext.Provider>
+  )
 }

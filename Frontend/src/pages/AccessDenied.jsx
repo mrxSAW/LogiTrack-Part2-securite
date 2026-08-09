@@ -1,15 +1,41 @@
 import { Link } from 'react-router-dom'
 
+import {Button,Container,Paper, Typography,} from '@mui/material'
+
 export default function AccessDenied() {
   return (
-    <main>
-      <h1>Accès refusé</h1>
+    <Container maxWidth="sm">
+      <Paper
+        elevation={3}
+        sx={{
+          marginTop: 10,
+          padding: 4,
+          textAlign: 'center',
+        }}
+      >
+        <Typography
+          variant="h3"
+          gutterBottom
+        >
+          Accès refusé
+        </Typography>
 
-      <p>Vous n’avez pas la permission d’accéder à cette page.</p>
+        <Typography
+          color="text.secondary"
+          sx={{ marginBottom: 3 }}
+        >
+          Vous n’avez pas la permission
+          d’accéder à cette page.
+        </Typography>
 
-      <Link to="/dashboard">
-        Retour au tableau de bord
-      </Link>
-    </main>
+        <Button
+          component={Link}
+          to="/dashboard"
+          variant="contained"
+        >
+          Retour au tableau de bord
+        </Button>
+      </Paper>
+    </Container>
   )
 }

@@ -1,8 +1,14 @@
-import { Button,Dialog,DialogActions,DialogContent,DialogContentText,DialogTitle,} from '@mui/material'
+import {Button,Dialog,DialogActions,DialogContent,DialogContentText, DialogTitle,} from '@mui/material'
 
-export default function ConfirmDialog({open, title,message,loading,onCancel,onConfirm, }) {
+export default function ConfirmDialog({ open,title,message,loading, onCancel,onConfirm,}) {
+  function closeDialog() {
+    if (!loading) {
+      onCancel()
+    }
+  }
+
   return (
-    <Dialog open={open} onClose={loading ? undefined : onCancel} >
+    <Dialog  open={open}  onClose={closeDialog} >
       <DialogTitle>
         {title}
       </DialogTitle>
@@ -14,11 +20,11 @@ export default function ConfirmDialog({open, title,message,loading,onCancel,onCo
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onCancel} disabled={loading} >
+        <Button  onClick={onCancel}  disabled={loading} >
           Annuler
         </Button>
 
-        <Button color="error" variant="contained" onClick={onConfirm}  disabled={loading}>
+        <Button color="error" variant="contained" onClick={onConfirm}  disabled={loading} >
           {loading ? 'Suppression...' : 'Supprimer'}
         </Button>
       </DialogActions>

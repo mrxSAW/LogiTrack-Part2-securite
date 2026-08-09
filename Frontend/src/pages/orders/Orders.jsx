@@ -2,18 +2,15 @@ import {
   useEffect,
   useState,
 } from 'react'
+
 import { Link } from 'react-router-dom'
+
 import {
   Alert,
   Box,
   Button,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   MenuItem,
   Pagination,
   Paper,
@@ -26,7 +23,9 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+
 import api from '../../api/axiosInstance'
+import ConfirmDialog from '../../components/common/ConfirmDialog'
 import useAuth from '../../context/useAuth'
 
 function getStatusLabel(status) {
@@ -86,54 +85,54 @@ function getStatusButtonLabel(status) {
 }
 
 function calculateOrderTotal(order) {
-  const lignes = order.lignes || []
+  let total = 0
+  const lines = order.lignes || []
 
-  return lignes.reduce((total, ligne) => {
-    const prix = Number(
-      ligne.produit?.prix || 0,
+  for (const line of lines) {
+    const price = Number(
+      line.produit?.prix || 0
     )
 
-    const quantite = Number(
-      ligne.quantite || 0,
+    const quantity = Number(
+      line.quantite || 0
     )
 
-    return total + prix * quantite
-  }, 0)
+    total = total + price * quantity
+  }
+
+  return total
 }
 
-function sortOrderList(orders, sortValue) {
-  const [property, direction] =
-    sortValue.split(',')
+function sortOrderList(orders, sort) {
+  const parts = sort.split(',')
+  const property = parts[0]
+  const direction = parts[1]
 
-  return [...orders].sort(
-    (firstOrder, secondOrder) => {
-      let comparison
+  const sortedOrders = [...orders]
 
-      if (property === 'dateCommande') {
-        comparison = (
-          firstOrder.dateCommande || ''
-        ).localeCompare(
-          secondOrder.dateCommande || '',
-        )
-      } else {
-        comparison = (
-          firstOrder.statut || ''
-        ).localeCompare(
-          secondOrder.statut || '',
-          'fr',
-          {
-            sensitivity: 'base',
-          },
-        )
-      }
+  sortedOrders.sort(function compareOrders(
+    firstOrder,
+    secondOrder
+  ) {
+    const firstValue =
+      firstOrder[property] || ''
 
-      if (direction === 'desc') {
-        return -comparison
-      }
+    const secondValue =
+      secondOrder[property] || ''
 
-      return comparison
-    },
-  )
+    const result = firstValue.localeCompare(
+      secondValue,
+      'fr'
+    )
+
+    if (direction === 'desc') {
+      return -result
+    }
+
+    return result
+  })
+
+  return sortedOrders
 }
 
 export default function Orders() {
@@ -147,133 +146,101 @@ export default function Orders() {
   const [size, setSize] = useState(5)
 
   const [sort, setSort] = useState(
-    'dateCommande,desc',
+    'dateCommande,desc'
   )
 
-  const [totalPages, setTotalPages] = useState(0)
+  const [totalPages, setTotalPages] =
+    useState(0)
+
   const [totalElements, setTotalElements] =
     useState(0)
 
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] =
+    useState(false)
+
   const [error, setError] = useState('')
+  const [reload, setReload] = useState(0)
 
-  const [
-    updatingOrderId,
-    setUpdatingOrderId,
-  ] = useState(null)
+  const [updatingOrderId, setUpdatingOrderId] =
+    useState(null)
 
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [orderToDelete, setOrderToDelete] =
+    useState(null)
 
-  const [
-    orderToDelete,
-    setOrderToDelete,
-  ] = useState(null)
+  const auth = useAuth()
 
-  const [deleting, setDeleting] = useState(false)
-
-  const { hasRole } = useAuth()
-
-  const canManageOrders = hasRole(
+  const canManage = auth.hasRole(
     'ADMIN',
-    'MANAGER',
+    'MANAGER'
   )
 
-  const canDeleteOrders = hasRole('ADMIN')
+  const canDelete = auth.hasRole('ADMIN')
 
   const filterActive =
     status !== '' || clientId !== ''
 
   useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [])
-
-  // Charger les clients
-  useEffect(() => {
-    let actif = true
-
     async function loadClients() {
       try {
         const response = await api.get(
-          '/api/clients',
+          '/api/clients'
         )
 
-        if (actif) {
-          setClients(response.data)
-        }
+        setClients(response.data)
       } catch (requestError) {
-        if (actif) {
-          const message =
-            requestError.response?.data?.message ||
-            'Impossible de charger les clients'
+        const backendMessage =
+          requestError.response?.data?.message
 
-          setError(message)
-        }
+        setError(
+          backendMessage ||
+          'Impossible de charger les clients'
+        )
       }
     }
 
     loadClients()
-
-    return () => {
-      actif = false
-    }
   }, [])
 
-  // Charger les commandes
   useEffect(() => {
-    let actif = true
-
     async function loadOrders() {
       try {
         setLoading(true)
         setError('')
 
-        let response
-
-        // Filtrer par client et/ou statut
-        if (
-          status !== '' ||
-          clientId !== ''
-        ) {
+        if (filterActive) {
           const params = {}
 
-          if (status !== '') {
+          if (status) {
             params.statut = status
           }
 
-          if (clientId !== '') {
+          if (clientId) {
             params.clientId = clientId
           }
 
-          response = await api.get(
+          const response = await api.get(
             '/api/orders/filter',
             {
               params,
-            },
+            }
           )
 
-          if (actif) {
-            const sortedOrders =
-              sortOrderList(
-                response.data,
-                sort,
-              )
+          const sortedOrders = sortOrderList(
+            response.data,
+            sort
+          )
 
-            setOrders(sortedOrders)
-
-            setTotalElements(
-              sortedOrders.length,
-            )
-
-            setTotalPages(
-              sortedOrders.length > 0 ? 1 : 0,
-            )
-          }
+          setOrders(sortedOrders)
+          setTotalElements(sortedOrders.length)
+          setTotalPages(
+            sortedOrders.length > 0 ? 1 : 0
+          )
 
           return
         }
 
-        // Liste paginée et triée
-        response = await api.get(
+        const response = await api.get(
           '/api/orders/page',
           {
             params: {
@@ -281,47 +248,36 @@ export default function Orders() {
               size,
               sort,
             },
-          },
+          }
         )
 
-        if (actif) {
-          setOrders(response.data.content)
-
-          setTotalPages(
-            response.data.totalPages,
-          )
-
-          setTotalElements(
-            response.data.totalElements,
-          )
-        }
+        setOrders(response.data.content)
+        setTotalPages(response.data.totalPages)
+        setTotalElements(
+          response.data.totalElements
+        )
       } catch (requestError) {
-        if (actif) {
-          const message =
-            requestError.response?.data?.message ||
-            'Impossible de charger les commandes'
+        const backendMessage =
+          requestError.response?.data?.message
 
-          setError(message)
-        }
+        setError(
+          backendMessage ||
+          'Impossible de charger les commandes'
+        )
       } finally {
-        if (actif) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
 
     loadOrders()
-
-    return () => {
-      actif = false
-    }
   }, [
     status,
     clientId,
     page,
     size,
     sort,
-    refreshKey,
+    reload,
+    filterActive,
   ])
 
   function handleClientChange(event) {
@@ -355,29 +311,26 @@ export default function Orders() {
     setPage(0)
   }
 
-  async function handleChangeStatus(order) {
+  async function changeOrderStatus(order) {
     const nextStatus = getNextStatus(
-      order.statut,
+      order.statut
     )
 
     if (!nextStatus) {
       return
     }
 
-    // Empêcher l’expédition d’une commande vide
+    const orderIsEmpty =
+      !order.lignes ||
+      order.lignes.length === 0
+
     if (
       order.statut === 'EN_ATTENTE' &&
-      (!order.lignes ||
-        order.lignes.length === 0)
+      orderIsEmpty
     ) {
       setError(
-        'Ajoutez au moins un produit avant d’expédier la commande',
+        'Ajoutez au moins un produit avant d’expédier la commande'
       )
-
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      })
 
       return
     }
@@ -390,16 +343,18 @@ export default function Orders() {
         `/api/orders/${order.id}/status`,
         {
           statut: nextStatus,
-        },
+        }
       )
 
-      setRefreshKey((current) => current + 1)
+      setReload(reload + 1)
     } catch (requestError) {
-      const message =
-        requestError.response?.data?.message ||
-        'Impossible de changer le statut'
+      const backendMessage =
+        requestError.response?.data?.message
 
-      setError(message)
+      setError(
+        backendMessage ||
+        'Impossible de changer le statut'
+      )
     } finally {
       setUpdatingOrderId(null)
     }
@@ -415,7 +370,7 @@ export default function Orders() {
     }
   }
 
-  async function handleDeleteOrder() {
+  async function deleteOrder() {
     if (!orderToDelete) {
       return
     }
@@ -425,7 +380,7 @@ export default function Orders() {
       setError('')
 
       await api.delete(
-        `/api/orders/${orderToDelete.id}`,
+        `/api/orders/${orderToDelete.id}`
       )
 
       setOrderToDelete(null)
@@ -435,42 +390,65 @@ export default function Orders() {
         orders.length === 1 &&
         page > 0
       ) {
-        setPage((currentPage) => currentPage - 1)
+        setPage(page - 1)
       } else {
-        setRefreshKey((current) => current + 1)
+        setReload(reload + 1)
       }
     } catch (requestError) {
-      const message =
-        requestError.response?.data?.message ||
-        'Impossible de supprimer la commande'
+      const backendMessage =
+        requestError.response?.data?.message
 
-      setError(message)
+      setError(
+        backendMessage ||
+        'Impossible de supprimer la commande'
+      )
     } finally {
       setDeleting(false)
     }
   }
 
+  let deleteMessage = ''
+
+  if (orderToDelete) {
+    deleteMessage =
+      `Voulez-vous vraiment supprimer la commande #${orderToDelete.id} ?`
+
+    if (orderToDelete.statut === 'EN_ATTENTE') {
+      deleteMessage +=
+        ' Les quantités seront remises dans le stock.'
+    } else {
+      deleteMessage +=
+        ' Les quantités ne seront pas remises dans le stock.'
+    }
+  }
+
   return (
     <Box>
-      {/* Titre et création */}
       <Box
         sx={{
           display: 'flex',
+
           flexDirection: {
             xs: 'column',
             sm: 'row',
           },
+
           justifyContent: 'space-between',
+
           alignItems: {
             xs: 'flex-start',
             sm: 'center',
           },
+
           gap: 2,
           marginBottom: 3,
         }}
       >
         <Box>
-          <Typography variant="h4" gutterBottom>
+          <Typography
+            variant="h4"
+            gutterBottom
+          >
             Gestion des commandes
           </Typography>
 
@@ -479,7 +457,7 @@ export default function Orders() {
           </Typography>
         </Box>
 
-        {canManageOrders && (
+        {canManage && (
           <Button
             component={Link}
             to="/orders/new"
@@ -490,7 +468,6 @@ export default function Orders() {
         )}
       </Box>
 
-      {/* Filtres et tri */}
       <Paper
         sx={{
           padding: 2,
@@ -500,15 +477,16 @@ export default function Orders() {
         <Box
           sx={{
             display: 'grid',
+
             gridTemplateColumns: {
               xs: '1fr',
               sm: 'repeat(2, 1fr)',
               lg: 'repeat(4, 1fr)',
             },
+
             gap: 2,
           }}
         >
-          {/* Client */}
           <TextField
             select
             label="Client"
@@ -520,17 +498,20 @@ export default function Orders() {
               Tous les clients
             </MenuItem>
 
-            {clients.map((client) => (
-              <MenuItem
-                key={client.id}
-                value={client.id}
-              >
-                {client.nom} — {client.email}
-              </MenuItem>
-            ))}
+            {clients.map(function showClient(
+              client
+            ) {
+              return (
+                <MenuItem
+                  key={client.id}
+                  value={client.id}
+                >
+                  {client.nom} — {client.email}
+                </MenuItem>
+              )
+            })}
           </TextField>
 
-          {/* Statut */}
           <TextField
             select
             label="Statut"
@@ -555,7 +536,6 @@ export default function Orders() {
             </MenuItem>
           </TextField>
 
-          {/* Tri */}
           <TextField
             select
             label="Trier par"
@@ -580,7 +560,6 @@ export default function Orders() {
             </MenuItem>
           </TextField>
 
-          {/* Taille de page */}
           <TextField
             select
             label="Éléments par page"
@@ -597,31 +576,24 @@ export default function Orders() {
 
         {filterActive && (
           <Button
-            variant="text"
             onClick={clearFilters}
-            sx={{
-              marginTop: 1,
-            }}
+            sx={{ marginTop: 1 }}
           >
             Effacer les filtres
           </Button>
         )}
       </Paper>
 
-      {/* Erreur */}
       {error && (
         <Alert
           severity="error"
-          sx={{
-            marginBottom: 2,
-          }}
           onClose={() => setError('')}
+          sx={{ marginBottom: 2 }}
         >
           {error}
         </Alert>
       )}
 
-      {/* Chargement */}
       {loading ? (
         <Box
           sx={{
@@ -634,30 +606,15 @@ export default function Orders() {
         </Box>
       ) : (
         <>
-          {/* Tableau */}
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>
-                    Numéro
-                  </TableCell>
-
-                  <TableCell>
-                    Client
-                  </TableCell>
-
-                  <TableCell>
-                    Date
-                  </TableCell>
-
-                  <TableCell>
-                    Statut
-                  </TableCell>
-
-                  <TableCell>
-                    Produits
-                  </TableCell>
+                  <TableCell>Numéro</TableCell>
+                  <TableCell>Client</TableCell>
+                  <TableCell>Date</TableCell>
+                  <TableCell>Statut</TableCell>
+                  <TableCell>Produits</TableCell>
 
                   <TableCell align="right">
                     Total
@@ -670,7 +627,7 @@ export default function Orders() {
               </TableHead>
 
               <TableBody>
-                {orders.length === 0 ? (
+                {orders.length === 0 && (
                   <TableRow>
                     <TableCell
                       colSpan={7}
@@ -679,8 +636,18 @@ export default function Orders() {
                       Aucune commande trouvée
                     </TableCell>
                   </TableRow>
-                ) : (
-                  orders.map((order) => (
+                )}
+
+                {orders.map(function showOrder(
+                  order
+                ) {
+                  const nextStatus =
+                    getNextStatus(order.statut)
+
+                  const updating =
+                    updatingOrderId === order.id
+
+                  return (
                     <TableRow
                       key={order.id}
                       hover
@@ -701,10 +668,10 @@ export default function Orders() {
                       <TableCell>
                         <Chip
                           label={getStatusLabel(
-                            order.statut,
+                            order.statut
                           )}
                           color={getStatusColor(
-                            order.statut,
+                            order.statut
                           )}
                           size="small"
                         />
@@ -716,7 +683,7 @@ export default function Orders() {
 
                       <TableCell align="right">
                         {calculateOrderTotal(
-                          order,
+                          order
                         ).toFixed(2)}{' '}
                         DH
                       </TableCell>
@@ -732,7 +699,6 @@ export default function Orders() {
                             gap: 1,
                           }}
                         >
-                          {/* Accessible à tous */}
                           <Button
                             component={Link}
                             to={`/orders/${order.id}`}
@@ -741,8 +707,7 @@ export default function Orders() {
                             Voir
                           </Button>
 
-                          {/* ADMIN et MANAGER */}
-                          {canManageOrders &&
+                          {canManage &&
                             order.statut ===
                               'EN_ATTENTE' && (
                               <Button
@@ -754,28 +719,21 @@ export default function Orders() {
                               </Button>
                             )}
 
-                          {/* Changement de statut */}
-                          {getNextStatus(
-                            order.statut,
-                          ) && (
+                          {nextStatus && (
                             <Button
                               size="small"
                               variant="outlined"
-                              disabled={
-                                updatingOrderId ===
-                                order.id
-                              }
+                              disabled={updating}
                               onClick={() =>
-                                handleChangeStatus(
-                                  order,
+                                changeOrderStatus(
+                                  order
                                 )
                               }
                             >
-                              {updatingOrderId ===
-                              order.id
+                              {updating
                                 ? 'Modification...'
                                 : getStatusButtonLabel(
-                                    order.statut,
+                                    order.statut
                                   )}
                             </Button>
                           )}
@@ -790,14 +748,13 @@ export default function Orders() {
                             </Typography>
                           )}
 
-                          {/* ADMIN uniquement */}
-                          {canDeleteOrders && (
+                          {canDelete && (
                             <Button
                               color="error"
                               size="small"
                               onClick={() =>
                                 openDeleteDialog(
-                                  order,
+                                  order
                                 )
                               }
                             >
@@ -807,20 +764,21 @@ export default function Orders() {
                         </Box>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  )
+                })}
               </TableBody>
             </Table>
           </TableContainer>
 
-          {/* Pagination */}
           <Box
             sx={{
               display: 'flex',
+
               flexDirection: {
                 xs: 'column',
                 sm: 'row',
               },
+
               justifyContent: 'space-between',
               alignItems: 'center',
               gap: 2,
@@ -844,77 +802,14 @@ export default function Orders() {
         </>
       )}
 
-      {/* Confirmation de suppression */}
-      <Dialog
+      <ConfirmDialog
         open={Boolean(orderToDelete)}
-        onClose={closeDeleteDialog}
-      >
-        <DialogTitle>
-          Supprimer la commande
-        </DialogTitle>
-
-        <DialogContent>
-          <DialogContentText>
-            Voulez-vous vraiment supprimer la commande{' '}
-            <strong>
-              #{orderToDelete?.id}
-            </strong>
-            {' '}du client{' '}
-            <strong>
-              {orderToDelete?.client?.nom ||
-                'inconnu'}
-            </strong>
-            {' '}?
-          </DialogContentText>
-
-          {orderToDelete?.statut ===
-            'EN_ATTENTE' && (
-            <Alert
-              severity="info"
-              sx={{
-                marginTop: 2,
-              }}
-            >
-              Les quantités seront remises dans le stock.
-            </Alert>
-          )}
-
-          {orderToDelete &&
-            orderToDelete.statut !==
-              'EN_ATTENTE' && (
-              <Alert
-                severity="warning"
-                sx={{
-                  marginTop: 2,
-                }}
-              >
-                Cette commande n’est plus en attente.
-                Les quantités ne seront pas remises dans
-                le stock.
-              </Alert>
-            )}
-        </DialogContent>
-
-        <DialogActions>
-          <Button
-            onClick={closeDeleteDialog}
-            disabled={deleting}
-          >
-            Annuler
-          </Button>
-
-          <Button
-            onClick={handleDeleteOrder}
-            color="error"
-            variant="contained"
-            disabled={deleting}
-          >
-            {deleting
-              ? 'Suppression...'
-              : 'Supprimer'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        title="Supprimer la commande"
+        message={deleteMessage}
+        loading={deleting}
+        onCancel={closeDeleteDialog}
+        onConfirm={deleteOrder}
+      />
     </Box>
   )
 }

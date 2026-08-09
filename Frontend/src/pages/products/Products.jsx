@@ -2,18 +2,16 @@ import {
   useEffect,
   useState,
 } from 'react'
+
 import { Link } from 'react-router-dom'
+
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   FormControlLabel,
   MenuItem,
   Pagination,
@@ -27,77 +25,92 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+
 import api from '../../api/axiosInstance'
+import ConfirmDialog from '../../components/common/ConfirmDialog'
 import useAuth from '../../context/useAuth'
 
-function sortProductList(products, sortValue) {
-  const [property, direction] =
-    sortValue.split(',')
+function sortProductList(products, sort) {
+  const parts = sort.split(',')
+  const property = parts[0]
+  const direction = parts[1]
 
-  return [...products].sort(
-    (firstProduct, secondProduct) => {
-      let comparison
+  const sortedProducts = [...products]
 
-      if (property === 'nom') {
-        comparison = (
-          firstProduct.nom || ''
-        ).localeCompare(
-          secondProduct.nom || '',
-          'fr',
-          {
-            sensitivity: 'base',
-          },
-        )
-      } else {
-        comparison =
-          Number(firstProduct[property] || 0) -
-          Number(secondProduct[property] || 0)
-      }
+  sortedProducts.sort(function compareProducts(
+    firstProduct,
+    secondProduct
+  ) {
+    let result = 0
 
-      if (direction === 'desc') {
-        return -comparison
-      }
+    if (property === 'nom') {
+      result = firstProduct.nom.localeCompare(
+        secondProduct.nom,
+        'fr'
+      )
+    } else {
+      result =
+        Number(firstProduct[property]) -
+        Number(secondProduct[property])
+    }
 
-      return comparison
-    },
-  )
+    if (direction === 'desc') {
+      return -result
+    }
+
+    return result
+  })
+
+  return sortedProducts
+}
+
+function getStockColor(quantity) {
+  if (quantity === 0) {
+    return 'error'
+  }
+
+  if (quantity < 5) {
+    return 'warning'
+  }
+
+  return 'success'
 }
 
 export default function Products() {
   const [products, setProducts] = useState([])
   const [keyword, setKeyword] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
-  const [lowStock, setLowStock] = useState(false)
+  const [lowStock, setLowStock] =
+    useState(false)
 
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(5)
   const [sort, setSort] = useState('nom,asc')
 
-  const [totalPages, setTotalPages] = useState(0)
+  const [totalPages, setTotalPages] =
+    useState(0)
+
   const [totalElements, setTotalElements] =
     useState(0)
 
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] =
+    useState(false)
+
   const [error, setError] = useState('')
+  const [reload, setReload] = useState(0)
 
-  const [
-    productToDelete,
-    setProductToDelete,
-  ] = useState(null)
+  const [productToDelete, setProductToDelete] =
+    useState(null)
 
-  const [deleting, setDeleting] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const auth = useAuth()
 
-  const { hasRole } = useAuth()
-
-  const canManageProducts = hasRole(
+  const canManage = auth.hasRole(
     'ADMIN',
-    'MANAGER',
+    'MANAGER'
   )
 
-  const canDeleteProducts = hasRole('ADMIN')
-
-  const canViewLowStock = canManageProducts
+  const canDelete = auth.hasRole('ADMIN')
 
   const filterActive =
     Boolean(keyword.trim()) ||
@@ -105,74 +118,51 @@ export default function Products() {
     lowStock
 
   useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [])
-
-  useEffect(() => {
-    let actif = true
-
-    const timer = setTimeout(async () => {
+    async function loadProducts() {
       try {
         setLoading(true)
         setError('')
 
         let response
 
-        // Filtre : stock faible
-        if (lowStock && canViewLowStock) {
+        if (lowStock && canManage) {
           response = await api.get(
-            '/api/products/low-stock',
+            '/api/products/low-stock'
           )
 
-          if (actif) {
-            const sortedProducts =
-              sortProductList(
-                response.data,
-                sort,
-              )
+          const sortedProducts = sortProductList(
+            response.data,
+            sort
+          )
 
-            setProducts(sortedProducts)
-
-            setTotalElements(
-              sortedProducts.length,
-            )
-
-            setTotalPages(
-              sortedProducts.length > 0 ? 1 : 0,
-            )
-          }
+          setProducts(sortedProducts)
+          setTotalElements(sortedProducts.length)
+          setTotalPages(
+            sortedProducts.length > 0 ? 1 : 0
+          )
 
           return
         }
 
-        // Filtre : prix maximum
         if (maxPrice !== '') {
           response = await api.get(
-            `/api/products/price/${maxPrice}`,
+            `/api/products/price/${maxPrice}`
           )
 
-          if (actif) {
-            const sortedProducts =
-              sortProductList(
-                response.data,
-                sort,
-              )
+          const sortedProducts = sortProductList(
+            response.data,
+            sort
+          )
 
-            setProducts(sortedProducts)
-
-            setTotalElements(
-              sortedProducts.length,
-            )
-
-            setTotalPages(
-              sortedProducts.length > 0 ? 1 : 0,
-            )
-          }
+          setProducts(sortedProducts)
+          setTotalElements(sortedProducts.length)
+          setTotalPages(
+            sortedProducts.length > 0 ? 1 : 0
+          )
 
           return
         }
 
-        // Recherche par nom ou catégorie
         if (keyword.trim()) {
           response = await api.get(
             '/api/products/search',
@@ -180,31 +170,23 @@ export default function Products() {
               params: {
                 keyword: keyword.trim(),
               },
-            },
+            }
           )
 
-          if (actif) {
-            const sortedProducts =
-              sortProductList(
-                response.data,
-                sort,
-              )
+          const sortedProducts = sortProductList(
+            response.data,
+            sort
+          )
 
-            setProducts(sortedProducts)
-
-            setTotalElements(
-              sortedProducts.length,
-            )
-
-            setTotalPages(
-              sortedProducts.length > 0 ? 1 : 0,
-            )
-          }
+          setProducts(sortedProducts)
+          setTotalElements(sortedProducts.length)
+          setTotalPages(
+            sortedProducts.length > 0 ? 1 : 0
+          )
 
           return
         }
 
-        // Liste paginée et triée
         response = await api.get(
           '/api/products/page',
           {
@@ -213,39 +195,28 @@ export default function Products() {
               size,
               sort,
             },
-          },
+          }
         )
 
-        if (actif) {
-          setProducts(response.data.content)
-
-          setTotalPages(
-            response.data.totalPages,
-          )
-
-          setTotalElements(
-            response.data.totalElements,
-          )
-        }
+        setProducts(response.data.content)
+        setTotalPages(response.data.totalPages)
+        setTotalElements(
+          response.data.totalElements
+        )
       } catch (requestError) {
-        if (actif) {
-          const message =
-            requestError.response?.data?.message ||
-            'Impossible de charger les produits'
+        const backendMessage =
+          requestError.response?.data?.message
 
-          setError(message)
-        }
+        setError(
+          backendMessage ||
+          'Impossible de charger les produits'
+        )
       } finally {
-        if (actif) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
-    }, 300)
-
-    return () => {
-      actif = false
-      clearTimeout(timer)
     }
+
+    loadProducts()
   }, [
     keyword,
     maxPrice,
@@ -253,8 +224,8 @@ export default function Products() {
     page,
     size,
     sort,
-    canViewLowStock,
-    refreshKey,
+    canManage,
+    reload,
   ])
 
   function handleSearch(event) {
@@ -278,9 +249,9 @@ export default function Products() {
     setPage(0)
   }
 
-  function handlePageChange(event, newPage) {
-    void event
-    setPage(newPage - 1)
+  function handleSortChange(event) {
+    setSort(event.target.value)
+    setPage(0)
   }
 
   function handleSizeChange(event) {
@@ -288,9 +259,9 @@ export default function Products() {
     setPage(0)
   }
 
-  function handleSortChange(event) {
-    setSort(event.target.value)
-    setPage(0)
+  function handlePageChange(event, newPage) {
+    void event
+    setPage(newPage - 1)
   }
 
   function openDeleteDialog(product) {
@@ -303,7 +274,7 @@ export default function Products() {
     }
   }
 
-  async function handleDeleteProduct() {
+  async function deleteProduct() {
     if (!productToDelete) {
       return
     }
@@ -313,7 +284,7 @@ export default function Products() {
       setError('')
 
       await api.delete(
-        `/api/products/${productToDelete.id}`,
+        `/api/products/${productToDelete.id}`
       )
 
       setProductToDelete(null)
@@ -323,16 +294,18 @@ export default function Products() {
         products.length === 1 &&
         page > 0
       ) {
-        setPage((currentPage) => currentPage - 1)
+        setPage(page - 1)
       } else {
-        setRefreshKey((current) => current + 1)
+        setReload(reload + 1)
       }
     } catch (requestError) {
-      const message =
-        requestError.response?.data?.message ||
-        'Impossible de supprimer le produit'
+      const backendMessage =
+        requestError.response?.data?.message
 
-      setError(message)
+      setError(
+        backendMessage ||
+        'Impossible de supprimer le produit'
+      )
     } finally {
       setDeleting(false)
     }
@@ -340,25 +313,31 @@ export default function Products() {
 
   return (
     <Box>
-      {/* Titre et bouton d’ajout */}
       <Box
         sx={{
           display: 'flex',
+
           flexDirection: {
             xs: 'column',
             sm: 'row',
           },
+
           justifyContent: 'space-between',
+
           alignItems: {
             xs: 'flex-start',
             sm: 'center',
           },
+
           gap: 2,
           marginBottom: 3,
         }}
       >
         <Box>
-          <Typography variant="h4" gutterBottom>
+          <Typography
+            variant="h4"
+            gutterBottom
+          >
             Gestion des produits
           </Typography>
 
@@ -367,7 +346,7 @@ export default function Products() {
           </Typography>
         </Box>
 
-        {canManageProducts && (
+        {canManage && (
           <Button
             component={Link}
             to="/products/new"
@@ -378,7 +357,6 @@ export default function Products() {
         )}
       </Box>
 
-      {/* Recherche, filtres et tri */}
       <Paper
         sx={{
           padding: 2,
@@ -388,11 +366,13 @@ export default function Products() {
         <Box
           sx={{
             display: 'grid',
+
             gridTemplateColumns: {
               xs: '1fr',
               md: 'repeat(2, 1fr)',
               lg: '2fr 1fr 1fr 1fr',
             },
+
             gap: 2,
             alignItems: 'center',
           }}
@@ -464,11 +444,9 @@ export default function Products() {
           </TextField>
         </Box>
 
-        {canViewLowStock && (
+        {canManage && (
           <FormControlLabel
-            sx={{
-              marginTop: 1,
-            }}
+            sx={{ marginTop: 1 }}
             control={
               <Checkbox
                 checked={lowStock}
@@ -480,19 +458,15 @@ export default function Products() {
         )}
       </Paper>
 
-      {/* Message d’erreur */}
       {error && (
-        <Typography
-          color="error"
-          sx={{
-            marginBottom: 2,
-          }}
+        <Alert
+          severity="error"
+          sx={{ marginBottom: 2 }}
         >
           {error}
-        </Typography>
+        </Alert>
       )}
 
-      {/* Chargement */}
       {loading ? (
         <Box
           sx={{
@@ -505,7 +479,6 @@ export default function Products() {
         </Box>
       ) : (
         <>
-          {/* Tableau des produits */}
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -522,7 +495,7 @@ export default function Products() {
               </TableHead>
 
               <TableBody>
-                {products.length === 0 ? (
+                {products.length === 0 && (
                   <TableRow>
                     <TableCell
                       colSpan={5}
@@ -531,8 +504,12 @@ export default function Products() {
                       Aucun produit trouvé
                     </TableCell>
                   </TableRow>
-                ) : (
-                  products.map((product) => (
+                )}
+
+                {products.map(function showProduct(
+                  product
+                ) {
+                  return (
                     <TableRow
                       key={product.id}
                       hover
@@ -547,24 +524,18 @@ export default function Products() {
 
                       <TableCell>
                         {Number(
-                          product.prix,
+                          product.prix
                         ).toFixed(2)}{' '}
                         DH
                       </TableCell>
 
                       <TableCell>
                         <Chip
-                          label={
-                            product.quantiteStock
-                          }
+                          label={product.quantiteStock}
                           size="small"
-                          color={
-                            product.quantiteStock === 0
-                              ? 'error'
-                              : product.quantiteStock < 5
-                                ? 'warning'
-                                : 'success'
-                          }
+                          color={getStockColor(
+                            product.quantiteStock
+                          )}
                         />
                       </TableCell>
 
@@ -578,7 +549,6 @@ export default function Products() {
                             gap: 1,
                           }}
                         >
-                          {/* Accessible à tous */}
                           <Button
                             component={Link}
                             to={`/products/${product.id}`}
@@ -587,8 +557,7 @@ export default function Products() {
                             Voir
                           </Button>
 
-                          {/* ADMIN et MANAGER */}
-                          {canManageProducts && (
+                          {canManage && (
                             <Button
                               component={Link}
                               to={`/products/${product.id}/edit`}
@@ -598,14 +567,13 @@ export default function Products() {
                             </Button>
                           )}
 
-                          {/* ADMIN uniquement */}
-                          {canDeleteProducts && (
+                          {canDelete && (
                             <Button
                               color="error"
                               size="small"
                               onClick={() =>
                                 openDeleteDialog(
-                                  product,
+                                  product
                                 )
                               }
                             >
@@ -615,20 +583,21 @@ export default function Products() {
                         </Box>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  )
+                })}
               </TableBody>
             </Table>
           </TableContainer>
 
-          {/* Total et pagination */}
           <Box
             sx={{
               display: 'flex',
+
               flexDirection: {
                 xs: 'column',
                 sm: 'row',
               },
+
               justifyContent: 'space-between',
               alignItems: 'center',
               gap: 2,
@@ -652,45 +621,18 @@ export default function Products() {
         </>
       )}
 
-      {/* Confirmation de suppression */}
-      <Dialog
+      <ConfirmDialog
         open={Boolean(productToDelete)}
-        onClose={closeDeleteDialog}
-      >
-        <DialogTitle>
-          Supprimer le produit
-        </DialogTitle>
-
-        <DialogContent>
-          <DialogContentText>
-            Voulez-vous vraiment supprimer le produit{' '}
-            <strong>
-              {productToDelete?.nom}
-            </strong>
-            {' '}?
-          </DialogContentText>
-        </DialogContent>
-
-        <DialogActions>
-          <Button
-            onClick={closeDeleteDialog}
-            disabled={deleting}
-          >
-            Annuler
-          </Button>
-
-          <Button
-            onClick={handleDeleteProduct}
-            color="error"
-            variant="contained"
-            disabled={deleting}
-          >
-            {deleting
-              ? 'Suppression...'
-              : 'Supprimer'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        title="Supprimer le produit"
+        message={
+          productToDelete
+            ? `Voulez-vous vraiment supprimer ${productToDelete.nom} ?`
+            : ''
+        }
+        loading={deleting}
+        onCancel={closeDeleteDialog}
+        onConfirm={deleteProduct}
+      />
     </Box>
   )
 }

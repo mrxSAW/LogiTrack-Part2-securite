@@ -2,13 +2,17 @@ import {
   useEffect,
   useState,
 } from 'react'
+
 import {
   useNavigate,
   useParams,
 } from 'react-router-dom'
+
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
+
 import {
+  Alert,
   Box,
   Button,
   CircularProgress,
@@ -16,6 +20,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+
 import api from '../../api/axiosInstance'
 import { productSchema } from '../../schemas/productSchema'
 
@@ -24,20 +29,13 @@ export default function ProductForm() {
   const [serverError, setServerError] =
     useState('')
 
-  const { id } = useParams()
   const navigate = useNavigate()
+  const params = useParams()
 
-  const isEditMode = Boolean(id)
+  const productId = params.id
+  const isEditMode = Boolean(productId)
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: {
-      errors,
-      isSubmitting,
-    },
-  } = useForm({
+  const form = useForm({
     resolver: yupResolver(productSchema),
 
     defaultValues: {
@@ -48,52 +46,48 @@ export default function ProductForm() {
     },
   })
 
+  const errors = form.formState.errors
+  const isSubmitting =
+    form.formState.isSubmitting
+
+  const resetForm = form.reset
+
   useEffect(() => {
-    let actif = true
+    if (!productId) {
+      return
+    }
 
-    async function chargerProduit() {
-      if (!isEditMode) {
-        return
-      }
-
+    async function loadProduct() {
       try {
         setLoading(true)
         setServerError('')
 
         const response = await api.get(
-          `/api/products/${id}`,
+          `/api/products/${productId}`
         )
 
-        if (actif) {
-          reset({
-            nom: response.data.nom,
-            categorie: response.data.categorie,
-            prix: response.data.prix,
-            quantiteStock:
-              response.data.quantiteStock,
-          })
-        }
+        resetForm({
+          nom: response.data.nom,
+          categorie: response.data.categorie,
+          prix: response.data.prix,
+          quantiteStock:
+            response.data.quantiteStock,
+        })
       } catch (error) {
-        if (actif) {
-          const message =
-            error.response?.data?.message ||
-            'Impossible de charger le produit'
+        const backendMessage =
+          error.response?.data?.message
 
-          setServerError(message)
-        }
+        setServerError(
+          backendMessage ||
+          'Impossible de charger le produit'
+        )
       } finally {
-        if (actif) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
 
-    chargerProduit()
-
-    return () => {
-      actif = false
-    }
-  }, [id, isEditMode, reset])
+    loadProduct()
+  }, [productId, resetForm])
 
   async function onSubmit(data) {
     setServerError('')
@@ -101,13 +95,13 @@ export default function ProductForm() {
     try {
       if (isEditMode) {
         await api.put(
-          `/api/products/${id}`,
-          data,
+          `/api/products/${productId}`,
+          data
         )
       } else {
         await api.post(
           '/api/products',
-          data,
+          data
         )
       }
 
@@ -115,12 +109,18 @@ export default function ProductForm() {
         replace: true,
       })
     } catch (error) {
-      const message =
-        error.response?.data?.message ||
-        "Impossible d'enregistrer le produit"
+      const backendMessage =
+        error.response?.data?.message
 
-      setServerError(message)
+      setServerError(
+        backendMessage ||
+        "Impossible d'enregistrer le produit"
+      )
     }
+  }
+
+  function cancelForm() {
+    navigate('/products')
   }
 
   if (loading) {
@@ -155,23 +155,21 @@ export default function ProductForm() {
         }}
       >
         {serverError && (
-          <Typography
-            color="error"
-            sx={{
-              marginBottom: 2,
-            }}
+          <Alert
+            severity="error"
+            sx={{ marginBottom: 2 }}
           >
             {serverError}
-          </Typography>
+          </Alert>
         )}
 
         <Box
           component="form"
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={form.handleSubmit(onSubmit)}
           noValidate
         >
           <TextField
-            {...register('nom')}
+            {...form.register('nom')}
             label="Nom du produit"
             fullWidth
             margin="normal"
@@ -180,7 +178,7 @@ export default function ProductForm() {
           />
 
           <TextField
-            {...register('categorie')}
+            {...form.register('categorie')}
             label="Catégorie"
             fullWidth
             margin="normal"
@@ -189,7 +187,7 @@ export default function ProductForm() {
           />
 
           <TextField
-            {...register('prix', {
+            {...form.register('prix', {
               valueAsNumber: true,
             })}
             label="Prix"
@@ -207,14 +205,19 @@ export default function ProductForm() {
           />
 
           <TextField
-            {...register('quantiteStock', {
-              valueAsNumber: true,
-            })}
+            {...form.register(
+              'quantiteStock',
+              {
+                valueAsNumber: true,
+              }
+            )}
             label="Quantité en stock"
             type="number"
             fullWidth
             margin="normal"
-            error={Boolean(errors.quantiteStock)}
+            error={Boolean(
+              errors.quantiteStock
+            )}
             helperText={
               errors.quantiteStock?.message
             }
@@ -237,9 +240,7 @@ export default function ProductForm() {
             <Button
               type="button"
               variant="outlined"
-              onClick={() =>
-                navigate('/products')
-              }
+              onClick={cancelForm}
             >
               Annuler
             </Button>

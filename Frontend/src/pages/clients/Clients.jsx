@@ -1,27 +1,31 @@
-import {
-  useEffect,
-  useState,
-} from 'react'
+import {useEffect, useState,} from 'react'
+
 import { Link } from 'react-router-dom'
-import {
-  Box,
-  Button,
-  CircularProgress,
-  MenuItem,
-  Pagination,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from '@mui/material'
+
+import { Alert,Box,Button, CircularProgress,MenuItem,Pagination,Paper,Table,TableBody,TableCell,TableContainer,TableHead,TableRow,TextField,Typography,} from '@mui/material'
+
 import api from '../../api/axiosInstance'
-import useAuth from '../../context/useAuth'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
+import useAuth from '../../context/useAuth'
+
+function sortClientList(clients, sort) {
+  const sortedClients = [...clients]
+
+  sortedClients.sort(function compareClients( firstClient, secondClient) {
+    const result = firstClient.nom.localeCompare(
+      secondClient.nom,
+      'fr'
+    )
+
+    if (sort === 'nom,desc') {
+      return -result
+    }
+
+    return result
+  })
+
+  return sortedClients
+}
 
 export default function Clients() {
   const [clients, setClients] = useState([])
@@ -31,44 +35,37 @@ export default function Clients() {
   const [size, setSize] = useState(5)
   const [sort, setSort] = useState('nom,asc')
 
-  const [totalPages, setTotalPages] = useState(0)
+  const [totalPages, setTotalPages] =
+    useState(0)
+
   const [totalElements, setTotalElements] =
     useState(0)
 
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [reload, setReload] = useState(0)
-
-  const [
-    clientToDelete,
-    setClientToDelete,
-  ] = useState(null)
-
   const [deleting, setDeleting] =
     useState(false)
 
-  const { hasRole } = useAuth()
+  const [error, setError] = useState('')
+  const [reload, setReload] = useState(0)
 
-  const canManage = hasRole(
+  const [clientToDelete, setClientToDelete] =
+    useState(null)
+
+  const auth = useAuth()
+
+  const canManage = auth.hasRole(
     'ADMIN',
-    'MANAGER',
+    'MANAGER'
   )
 
-  const canDelete = hasRole('ADMIN')
+  const canDelete = auth.hasRole('ADMIN')
 
   useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [])
-
-  useEffect(() => {
-    let actif = true
-
-    const timer = setTimeout(async () => {
+    async function loadClients() {
       try {
         setLoading(true)
         setError('')
 
-        // Recherche d’un client
         if (keyword.trim()) {
           const response = await api.get(
             '/api/clients/search',
@@ -76,47 +73,26 @@ export default function Clients() {
               params: {
                 keyword: keyword.trim(),
               },
-            },
+            }
           )
 
-          const sortedClients = [
-            ...response.data,
-          ].sort(
-            (firstClient, secondClient) => {
-              const comparison = (
-                firstClient.nom || ''
-              ).localeCompare(
-                secondClient.nom || '',
-                'fr',
-                {
-                  sensitivity: 'base',
-                },
-              )
-
-              if (sort === 'nom,desc') {
-                return -comparison
-              }
-
-              return comparison
-            },
+          const sortedClients = sortClientList(
+            response.data,
+            sort
           )
 
-          if (actif) {
-            setClients(sortedClients)
+          setClients(sortedClients)
+          setTotalElements(sortedClients.length)
 
-            setTotalElements(
-              sortedClients.length,
-            )
-
-            setTotalPages(
-              sortedClients.length > 0 ? 1 : 0,
-            )
+          if (sortedClients.length === 0) {
+            setTotalPages(0)
+          } else {
+            setTotalPages(1)
           }
 
           return
         }
 
-        // Liste paginée et triée
         const response = await api.get(
           '/api/clients/page',
           {
@@ -125,39 +101,28 @@ export default function Clients() {
               size,
               sort,
             },
-          },
+          }
         )
 
-        if (actif) {
-          setClients(response.data.content)
-
-          setTotalPages(
-            response.data.totalPages,
-          )
-
-          setTotalElements(
-            response.data.totalElements,
-          )
-        }
+        setClients(response.data.content)
+        setTotalPages(response.data.totalPages)
+        setTotalElements(
+          response.data.totalElements
+        )
       } catch (requestError) {
-        if (actif) {
-          const message =
-            requestError.response?.data?.message ||
-            'Impossible de charger les clients'
+        const backendMessage =
+          requestError.response?.data?.message
 
-          setError(message)
-        }
+        setError(
+          backendMessage ||
+          'Impossible de charger les clients'
+        )
       } finally {
-        if (actif) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
-    }, 300)
-
-    return () => {
-      actif = false
-      clearTimeout(timer)
     }
+
+    loadClients()
   }, [
     keyword,
     page,
@@ -186,7 +151,15 @@ export default function Clients() {
     setPage(0)
   }
 
-  async function handleDelete() {
+  function openDeleteDialog(client) {
+    setClientToDelete(client)
+  }
+
+  function closeDeleteDialog() {
+    setClientToDelete(null)
+  }
+
+  async function deleteClient() {
     if (!clientToDelete) {
       return
     }
@@ -196,26 +169,25 @@ export default function Clients() {
       setError('')
 
       await api.delete(
-        `/api/clients/${clientToDelete.id}`,
+        `/api/clients/${clientToDelete.id}`
       )
 
-      setClientToDelete(null)
+      closeDeleteDialog()
 
-      if (
-        clients.length === 1 &&
-        page > 0
-      ) {
-        setPage((currentPage) => currentPage - 1)
+      if (clients.length === 1 && page > 0) {
+        setPage(page - 1)
       } else {
-        setReload((value) => value + 1)
+        setReload(reload + 1)
       }
     } catch (requestError) {
-      const message =
-        requestError.response?.data?.message ||
-        'Impossible de supprimer le client'
+      const backendMessage = requestError.response?.data?.message
 
-      setError(message)
-      setClientToDelete(null)
+      setError(
+        backendMessage ||
+        'Impossible de supprimer le client'
+      )
+
+      closeDeleteDialog()
     } finally {
       setDeleting(false)
     }
@@ -223,25 +195,31 @@ export default function Clients() {
 
   return (
     <Box>
-      {/* Titre et bouton d’ajout */}
       <Box
         sx={{
           display: 'flex',
+
           flexDirection: {
             xs: 'column',
             sm: 'row',
           },
+
           justifyContent: 'space-between',
+
           alignItems: {
             xs: 'stretch',
             sm: 'center',
           },
+
           gap: 2,
           marginBottom: 3,
         }}
       >
         <Box>
-          <Typography variant="h4" gutterBottom>
+          <Typography
+            variant="h4"
+            gutterBottom
+          >
             Gestion des clients
           </Typography>
 
@@ -261,7 +239,6 @@ export default function Clients() {
         )}
       </Box>
 
-      {/* Recherche, tri et pagination */}
       <Paper
         sx={{
           padding: 2,
@@ -271,10 +248,12 @@ export default function Clients() {
         <Box
           sx={{
             display: 'flex',
+
             flexDirection: {
               xs: 'column',
               md: 'row',
             },
+
             gap: 2,
           }}
         >
@@ -293,9 +272,7 @@ export default function Clients() {
             value={sort}
             onChange={handleSortChange}
             size="small"
-            sx={{
-              minWidth: 180,
-            }}
+            sx={{ minWidth: 180 }}
           >
             <MenuItem value="nom,asc">
               Nom : A vers Z
@@ -313,9 +290,7 @@ export default function Clients() {
             onChange={handleSizeChange}
             size="small"
             disabled={Boolean(keyword.trim())}
-            sx={{
-              minWidth: 180,
-            }}
+            sx={{ minWidth: 180 }}
           >
             <MenuItem value={5}>5</MenuItem>
             <MenuItem value={10}>10</MenuItem>
@@ -324,19 +299,15 @@ export default function Clients() {
         </Box>
       </Paper>
 
-      {/* Message d’erreur */}
       {error && (
-        <Typography
-          color="error"
-          sx={{
-            marginBottom: 2,
-          }}
+        <Alert
+          severity="error"
+          sx={{ marginBottom: 2 }}
         >
           {error}
-        </Typography>
+        </Alert>
       )}
 
-      {/* Chargement */}
       {loading ? (
         <Box
           sx={{
@@ -349,7 +320,6 @@ export default function Clients() {
         </Box>
       ) : (
         <>
-          {/* Tableau des clients */}
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -359,24 +329,23 @@ export default function Clients() {
                   <TableCell>Téléphone</TableCell>
                   <TableCell>Ville</TableCell>
 
-                  <TableCell align="right">
-                    Actions
-                  </TableCell>
+                  <TableCell align="right"> Actions</TableCell>
                 </TableRow>
               </TableHead>
 
               <TableBody>
-                {clients.length === 0 ? (
+                {clients.length === 0 && (
                   <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      align="center"
-                    >
+                    <TableCell colSpan={5} align="center" >
                       Aucun client trouvé
                     </TableCell>
                   </TableRow>
-                ) : (
-                  clients.map((client) => (
+                )}
+
+                {clients.map(function showClient(
+                  client
+                ) {
+                  return (
                     <TableRow
                       key={client.id}
                       hover
@@ -407,57 +376,39 @@ export default function Clients() {
                             gap: 1,
                           }}
                         >
-                          {/* Accessible à tous */}
-                          <Button
-                            component={Link}
-                            to={`/clients/${client.id}`}
-                            size="small"
-                          >
+                          <Button component={Link}  to={`/clients/${client.id}`} size="small" >
                             Voir
                           </Button>
 
-                          {/* ADMIN et MANAGER */}
                           {canManage && (
-                            <Button
-                              component={Link}
-                              to={`/clients/${client.id}/edit`}
-                              size="small"
-                            >
+                            <Button component={Link} to={`/clients/${client.id}/edit`} size="small">
                               Modifier
                             </Button>
                           )}
 
-                          {/* ADMIN uniquement */}
-                          {canDelete && (
-                            <Button
-                              color="error"
-                              size="small"
-                              onClick={() =>
-                                setClientToDelete(
-                                  client,
-                                )
-                              }
-                            >
-                              Supprimer
-                            </Button>
+                          {canDelete && ( <Button color="error" size="small"
+                                          onClick={() => openDeleteDialog(client) } >
+                                         Supprimer
+                                         </Button>
                           )}
                         </Box>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  )
+                })}
               </TableBody>
             </Table>
           </TableContainer>
 
-          {/* Total et pagination */}
           <Box
             sx={{
               display: 'flex',
+
               flexDirection: {
                 xs: 'column',
                 sm: 'row',
               },
+
               justifyContent: 'space-between',
               alignItems: 'center',
               gap: 2,
@@ -481,7 +432,6 @@ export default function Clients() {
         </>
       )}
 
-      {/* Confirmation de suppression */}
       <ConfirmDialog
         open={Boolean(clientToDelete)}
         title="Supprimer le client"
@@ -491,10 +441,8 @@ export default function Clients() {
             : ''
         }
         loading={deleting}
-        onCancel={() =>
-          setClientToDelete(null)
-        }
-        onConfirm={handleDelete}
+        onCancel={closeDeleteDialog}
+        onConfirm={deleteClient}
       />
     </Box>
   )

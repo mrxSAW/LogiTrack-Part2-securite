@@ -2,11 +2,13 @@ import {
   useEffect,
   useState,
 } from 'react'
+
 import {
   Link,
   useNavigate,
   useParams,
 } from 'react-router-dom'
+
 import {
   Alert,
   Box,
@@ -17,64 +19,80 @@ import {
   Paper,
   Typography,
 } from '@mui/material'
+
 import api from '../../api/axiosInstance'
 import useAuth from '../../context/useAuth'
 
-export default function ProductDetails() {
-  const { id } = useParams()
-  const navigate = useNavigate()
+function getStockLabel(quantity) {
+  if (quantity === 0) {
+    return 'Rupture de stock'
+  }
 
+  if (quantity < 5) {
+    return 'Stock faible'
+  }
+
+  return 'Disponible'
+}
+
+function getStockColor(quantity) {
+  if (quantity === 0) {
+    return 'error'
+  }
+
+  if (quantity < 5) {
+    return 'warning'
+  }
+
+  return 'success'
+}
+
+export default function ProductDetails() {
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const { hasRole } = useAuth()
+  const params = useParams()
+  const navigate = useNavigate()
+  const auth = useAuth()
 
-  const canManage = hasRole(
+  const productId = params.id
+
+  const canManage = auth.hasRole(
     'ADMIN',
-    'MANAGER',
+    'MANAGER'
   )
 
   useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [])
-
-  useEffect(() => {
-    let actif = true
-
     async function loadProduct() {
       try {
         setLoading(true)
         setError('')
 
         const response = await api.get(
-          `/api/products/${id}`,
+          `/api/products/${productId}`
         )
 
-        if (actif) {
-          setProduct(response.data)
-        }
+        setProduct(response.data)
       } catch (requestError) {
-        if (actif) {
-          const message =
-            requestError.response?.data?.message ||
-            'Impossible de charger le produit'
+        const backendMessage =
+          requestError.response?.data?.message
 
-          setError(message)
-        }
+        setError(
+          backendMessage ||
+          'Impossible de charger le produit'
+        )
       } finally {
-        if (actif) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
 
     loadProduct()
+  }, [productId])
 
-    return () => {
-      actif = false
-    }
-  }, [id])
+  function goBack() {
+    navigate('/products')
+  }
 
   if (loading) {
     return (
@@ -99,12 +117,8 @@ export default function ProductDetails() {
 
         <Button
           variant="outlined"
-          sx={{
-            marginTop: 2,
-          }}
-          onClick={() =>
-            navigate('/products')
-          }
+          sx={{ marginTop: 2 }}
+          onClick={goBack}
         >
           Retour
         </Button>
@@ -120,32 +134,47 @@ export default function ProductDetails() {
     )
   }
 
-  const lowStock =
-    Number(product.quantiteStock) < 5
+  const stockQuantity = Number(
+    product.quantiteStock
+  )
 
-  const outOfStock =
-    Number(product.quantiteStock) === 0
+  const productPrice = Number(
+    product.prix || 0
+  )
+
+  const stockValue =
+    productPrice * stockQuantity
+
+  const outOfStock = stockQuantity === 0
+  const lowStock = stockQuantity < 5
 
   return (
     <Box>
       <Box
         sx={{
           display: 'flex',
+
           flexDirection: {
             xs: 'column',
             sm: 'row',
           },
+
           justifyContent: 'space-between',
+
           alignItems: {
             xs: 'flex-start',
             sm: 'center',
           },
+
           gap: 2,
           marginBottom: 3,
         }}
       >
         <Box>
-          <Typography variant="h4" gutterBottom>
+          <Typography
+            variant="h4"
+            gutterBottom
+          >
             Détails du produit
           </Typography>
 
@@ -168,9 +197,7 @@ export default function ProductDetails() {
       {outOfStock && (
         <Alert
           severity="error"
-          sx={{
-            marginBottom: 2,
-          }}
+          sx={{ marginBottom: 2 }}
         >
           Ce produit est en rupture de stock.
         </Alert>
@@ -179,9 +206,7 @@ export default function ProductDetails() {
       {!outOfStock && lowStock && (
         <Alert
           severity="warning"
-          sx={{
-            marginBottom: 2,
-          }}
+          sx={{ marginBottom: 2 }}
         >
           Le stock de ce produit est faible.
         </Alert>
@@ -207,36 +232,26 @@ export default function ProductDetails() {
           </Typography>
 
           <Chip
-            label={
-              outOfStock
-                ? 'Rupture de stock'
-                : lowStock
-                  ? 'Stock faible'
-                  : 'Disponible'
-            }
-            color={
-              outOfStock
-                ? 'error'
-                : lowStock
-                  ? 'warning'
-                  : 'success'
-            }
+            label={getStockLabel(
+              stockQuantity
+            )}
+            color={getStockColor(
+              stockQuantity
+            )}
           />
         </Box>
 
-        <Divider
-          sx={{
-            marginY: 3,
-          }}
-        />
+        <Divider sx={{ marginY: 3 }} />
 
         <Box
           sx={{
             display: 'grid',
+
             gridTemplateColumns: {
               xs: '1fr',
               sm: 'repeat(2, 1fr)',
             },
+
             gap: 3,
           }}
         >
@@ -276,10 +291,7 @@ export default function ProductDetails() {
             </Typography>
 
             <Typography variant="h6">
-              {Number(
-                product.prix || 0,
-              ).toFixed(2)}{' '}
-              DH
+              {productPrice.toFixed(2)} DH
             </Typography>
           </Box>
 
@@ -289,7 +301,7 @@ export default function ProductDetails() {
             </Typography>
 
             <Typography variant="h6">
-              {product.quantiteStock}
+              {stockQuantity}
             </Typography>
           </Box>
 
@@ -299,13 +311,7 @@ export default function ProductDetails() {
             </Typography>
 
             <Typography variant="h6">
-              {(
-                Number(product.prix || 0) *
-                Number(
-                  product.quantiteStock || 0,
-                )
-              ).toFixed(2)}{' '}
-              DH
+              {stockValue.toFixed(2)} DH
             </Typography>
           </Box>
         </Box>
@@ -313,10 +319,8 @@ export default function ProductDetails() {
 
       <Button
         variant="outlined"
-        sx={{
-          marginTop: 3,
-        }}
-        onClick={() => navigate('/products')}
+        sx={{ marginTop: 3 }}
+        onClick={goBack}
       >
         Retour
       </Button>

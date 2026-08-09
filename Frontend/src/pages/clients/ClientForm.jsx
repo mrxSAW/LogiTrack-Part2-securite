@@ -1,8 +1,26 @@
-import { useEffect, useState,} from 'react'
-import {useNavigate,useParams,} from 'react-router-dom'
+import {
+  useEffect,
+  useState,
+} from 'react'
+
+import {
+  useNavigate,
+  useParams,
+} from 'react-router-dom'
+
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
-import { Box,Button, CircularProgress,Paper,TextField,Typography,} from '@mui/material'
+
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Paper,
+  TextField,
+  Typography,
+} from '@mui/material'
+
 import api from '../../api/axiosInstance'
 import { clientSchema } from '../../schemas/clientSchema'
 
@@ -11,20 +29,13 @@ export default function ClientForm() {
   const [serverError, setServerError] =
     useState('')
 
-  const { id } = useParams()
   const navigate = useNavigate()
+  const params = useParams()
 
-  const isEditMode = Boolean(id)
+  const clientId = params.id
+  const isEditMode = Boolean(clientId)
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: {
-      errors,
-      isSubmitting,
-    },
-  } = useForm({
+  const form = useForm({
     resolver: yupResolver(clientSchema),
 
     defaultValues: {
@@ -35,52 +46,45 @@ export default function ClientForm() {
     },
   })
 
+  const errors = form.formState.errors
+  const isSubmitting =
+    form.formState.isSubmitting
+
   useEffect(() => {
-    let actif = true
+    if (!clientId) {
+      return
+    }
 
-    async function chargerClient() {
-      // En mode ajout, aucun client à charger.
-      if (!isEditMode) {
-        return
-      }
-
+    async function loadClient() {
       try {
         setLoading(true)
         setServerError('')
 
         const response = await api.get(
-          `/api/clients/${id}`,
+          `/api/clients/${clientId}`
         )
 
-        if (actif) {
-          reset({
-            nom: response.data.nom,
-            email: response.data.email,
-            telephone: response.data.telephone,
-            ville: response.data.ville,
-          })
-        }
+        form.reset({
+          nom: response.data.nom,
+          email: response.data.email,
+          telephone: response.data.telephone,
+          ville: response.data.ville,
+        })
       } catch (error) {
-        if (actif) {
-          const message =
-            error.response?.data?.message ||
-            'Impossible de charger le client'
+        const backendMessage =
+          error.response?.data?.message
 
-          setServerError(message)
-        }
+        setServerError(
+          backendMessage ||
+          'Impossible de charger le client'
+        )
       } finally {
-        if (actif) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
 
-    chargerClient()
-
-    return () => {
-      actif = false
-    }
-  }, [id, isEditMode, reset])
+    loadClient()
+  }, [clientId, form])
 
   async function onSubmit(data) {
     setServerError('')
@@ -88,13 +92,13 @@ export default function ClientForm() {
     try {
       if (isEditMode) {
         await api.put(
-          `/api/clients/${id}`,
-          data,
+          `/api/clients/${clientId}`,
+          data
         )
       } else {
         await api.post(
           '/api/clients',
-          data,
+          data
         )
       }
 
@@ -102,12 +106,18 @@ export default function ClientForm() {
         replace: true,
       })
     } catch (error) {
-      const message =
-        error.response?.data?.message ||
-        "Impossible d'enregistrer le client"
+      const backendMessage =
+        error.response?.data?.message
 
-      setServerError(message)
+      setServerError(
+        backendMessage ||
+        "Impossible d'enregistrer le client"
+      )
     }
+  }
+
+  function cancelForm() {
+    navigate('/clients')
   }
 
   if (loading) {
@@ -142,23 +152,21 @@ export default function ClientForm() {
         }}
       >
         {serverError && (
-          <Typography
-            color="error"
-            sx={{
-              marginBottom: 2,
-            }}
+          <Alert
+            severity="error"
+            sx={{ marginBottom: 2 }}
           >
             {serverError}
-          </Typography>
+          </Alert>
         )}
 
         <Box
           component="form"
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={form.handleSubmit(onSubmit)}
           noValidate
         >
           <TextField
-            {...register('nom')}
+            {...form.register('nom')}
             label="Nom"
             fullWidth
             margin="normal"
@@ -167,7 +175,7 @@ export default function ClientForm() {
           />
 
           <TextField
-            {...register('email')}
+            {...form.register('email')}
             label="Adresse email"
             type="email"
             fullWidth
@@ -177,7 +185,7 @@ export default function ClientForm() {
           />
 
           <TextField
-            {...register('telephone')}
+            {...form.register('telephone')}
             label="Téléphone"
             fullWidth
             margin="normal"
@@ -186,7 +194,7 @@ export default function ClientForm() {
           />
 
           <TextField
-            {...register('ville')}
+            {...form.register('ville')}
             label="Ville"
             fullWidth
             margin="normal"
@@ -205,9 +213,7 @@ export default function ClientForm() {
             <Button
               type="button"
               variant="outlined"
-              onClick={() =>
-                navigate('/clients')
-              }
+              onClick={cancelForm}
             >
               Annuler
             </Button>

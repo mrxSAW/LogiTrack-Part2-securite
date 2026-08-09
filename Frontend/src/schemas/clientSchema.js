@@ -12,14 +12,14 @@ export const clientSchema = yup.object({
     .required("L'adresse email est obligatoire")
     .email("L'adresse email n'est pas valide"),
 
- telephone: yup
-  .string()
-  .trim()
-  .required('Le téléphone est obligatoire')
-  .matches(
-    /^[0-9+ ]{9,15}$/,
-    'Le téléphone doit contenir entre 9 et 15 chiffres',
-  ),
+  telephone: yup
+    .string()
+    .trim()
+    .required('Le téléphone est obligatoire')
+    .matches(
+      /^[0-9+ ]{9,15}$/,
+      'Le téléphone doit contenir entre 9 et 15 caractères'
+    ),
 
   ville: yup
     .string()

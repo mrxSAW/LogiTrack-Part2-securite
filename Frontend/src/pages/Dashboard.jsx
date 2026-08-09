@@ -1,34 +1,21 @@
-import {
-  useEffect,
-  useState,
-} from 'react'
-import {
-  Box,
-  Chip,
-  CircularProgress,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from '@mui/material'
-import api from '../api/axiosInstance'
-import useAuth from '../context/useAuth'
-import DashboardCard from '../components/common/DashboardCard'
+import {useEffect,useState,} from 'react'
 
-function getStatusColor(statut) {
-  if (statut === 'EN_ATTENTE') {
+import {Alert,Box,Chip,CircularProgress,Paper,Table, TableBody,TableCell, TableContainer,TableHead, TableRow,Typography,} from '@mui/material'
+
+import api from '../api/axiosInstance'
+import DashboardCard from '../components/common/DashboardCard'
+import useAuth from '../context/useAuth'
+
+function getStatusColor(status) {
+  if (status === 'EN_ATTENTE') {
     return 'warning'
   }
 
-  if (statut === 'EXPEDIEE') {
+  if (status === 'EXPEDIEE') {
     return 'info'
   }
 
-  if (statut === 'LIVREE') {
+  if (status === 'LIVREE') {
     return 'success'
   }
 
@@ -40,55 +27,45 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const { user, hasRole } = useAuth()
+  const auth = useAuth()
 
-  const canViewStats = hasRole(
+  const canViewStats = auth.hasRole(
     'ADMIN',
-    'MANAGER',
+    'MANAGER'
   )
 
   useEffect(() => {
-    let actif = true
+    if (!canViewStats) {
+      setLoading(false)
+      return
+    }
 
-    async function chargerStatistiques() {
+    async function loadStats() {
       try {
         setLoading(true)
         setError('')
 
         const response = await api.get(
-          '/statistiques/dashboard',
+          '/statistiques/dashboard'
         )
 
-        if (actif) {
-          setStats(response.data)
-        }
+        setStats(response.data)
       } catch (requestError) {
-        if (actif) {
-          const message =
-            requestError.response?.data?.message ||
-            'Impossible de charger les statistiques'
+        const backendMessage =
+          requestError.response?.data?.message
 
-          setError(message)
-        }
+        setError(
+          backendMessage ||
+          'Impossible de charger les statistiques'
+        )
       } finally {
-        if (actif) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
 
-    if (canViewStats) {
-      chargerStatistiques()
-    } else {
-      setLoading(false)
-    }
-
-    return () => {
-      actif = false
-    }
+    loadStats()
   }, [canViewStats])
 
-  // Dashboard simple pour AGENT
   if (!canViewStats) {
     return (
       <Box>
@@ -99,24 +76,19 @@ export default function Dashboard() {
           Tableau de bord
         </Typography>
 
-        <Paper
-          sx={{
-            padding: 3,
-          }}
-        >
+        <Paper sx={{ padding: 3 }}>
           <Typography variant="h6">
-            Bienvenue {user?.prenom} {user?.nom}
+            Bienvenue {auth.user?.prenom}{' '}
+            {auth.user?.nom}
           </Typography>
 
           <Typography
             color="text.secondary"
-            sx={{
-              marginTop: 1,
-            }}
+            sx={{ marginTop: 1 }}
           >
             Vous êtes connecté avec le rôle AGENT.
-            Vous pouvez consulter les clients, les
-            produits et les commandes.
+            Vous pouvez consulter les clients,
+            les produits et les commandes.
           </Typography>
         </Paper>
       </Box>
@@ -139,15 +111,21 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <Typography color="error">
+      <Alert severity="error">
         {error}
-      </Typography>
+      </Alert>
     )
   }
 
   if (!stats) {
     return null
   }
+
+  const lowStockProducts =
+    stats.produitsStockFaible || []
+
+  const recentOrders =
+    stats.commandesRecentes || []
 
   return (
     <Box>
@@ -160,22 +138,22 @@ export default function Dashboard() {
 
       <Typography
         color="text.secondary"
-        sx={{
-          marginBottom: 3,
-        }}
+        sx={{ marginBottom: 3 }}
       >
-        Bienvenue {user?.prenom} {user?.nom}
+        Bienvenue {auth.user?.prenom}{' '}
+        {auth.user?.nom}
       </Typography>
 
-      {/* Cartes principales */}
       <Box
         sx={{
           display: 'grid',
+
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, 1fr)',
             lg: 'repeat(3, 1fr)',
           },
+
           gap: 2,
           marginBottom: 3,
         }}
@@ -216,7 +194,6 @@ export default function Dashboard() {
         />
       </Box>
 
-      {/* Produit le plus commandé */}
       <Paper
         sx={{
           padding: 3,
@@ -229,30 +206,23 @@ export default function Dashboard() {
 
         <Typography
           color="text.secondary"
-          sx={{
-            marginTop: 1,
-          }}
+          sx={{ marginTop: 1 }}
         >
           {stats.produitLePlusCommande ||
             'Aucune commande disponible'}
         </Typography>
       </Paper>
 
-      {/* Produits avec un stock faible */}
       <Typography
         variant="h5"
-        sx={{
-          marginBottom: 2,
-        }}
+        sx={{ marginBottom: 2 }}
       >
         Produits avec un stock faible
       </Typography>
 
       <TableContainer
         component={Paper}
-        sx={{
-          marginBottom: 3,
-        }}
+        sx={{ marginBottom: 3 }}
       >
         <Table>
           <TableHead>
@@ -264,41 +234,40 @@ export default function Dashboard() {
           </TableHead>
 
           <TableBody>
-            {stats.produitsStockFaible.length === 0 ? (
+            {lowStockProducts.length === 0 && (
               <TableRow>
                 <TableCell colSpan={3}>
                   Aucun produit avec un stock faible
                 </TableCell>
               </TableRow>
-            ) : (
-              stats.produitsStockFaible.map(
-                (produit) => (
-                  <TableRow key={produit.id}>
-                    <TableCell>
-                      {produit.nom}
-                    </TableCell>
-
-                    <TableCell>
-                      {produit.categorie}
-                    </TableCell>
-
-                    <TableCell>
-                      {produit.quantiteStock}
-                    </TableCell>
-                  </TableRow>
-                ),
-              )
             )}
+
+            {lowStockProducts.map(function showProduct(
+              product
+            ) {
+              return (
+                <TableRow key={product.id}>
+                  <TableCell>
+                    {product.nom}
+                  </TableCell>
+
+                  <TableCell>
+                    {product.categorie}
+                  </TableCell>
+
+                  <TableCell>
+                    {product.quantiteStock}
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </TableContainer>
 
-      {/* Commandes récentes */}
       <Typography
         variant="h5"
-        sx={{
-          marginBottom: 2,
-        }}
+        sx={{ marginBottom: 2 }}
       >
         Commandes récentes
       </Typography>
@@ -315,41 +284,43 @@ export default function Dashboard() {
           </TableHead>
 
           <TableBody>
-            {stats.commandesRecentes.length === 0 ? (
+            {recentOrders.length === 0 && (
               <TableRow>
                 <TableCell colSpan={4}>
                   Aucune commande récente
                 </TableCell>
               </TableRow>
-            ) : (
-              stats.commandesRecentes.map(
-                (commande) => (
-                  <TableRow key={commande.id}>
-                    <TableCell>
-                      #{commande.id}
-                    </TableCell>
-
-                    <TableCell>
-                      {commande.client?.nom}
-                    </TableCell>
-
-                    <TableCell>
-                      {commande.dateCommande}
-                    </TableCell>
-
-                    <TableCell>
-                      <Chip
-                        label={commande.statut}
-                        color={getStatusColor(
-                          commande.statut,
-                        )}
-                        size="small"
-                      />
-                    </TableCell>
-                  </TableRow>
-                ),
-              )
             )}
+
+            {recentOrders.map(function showOrder(
+              order
+            ) {
+              return (
+                <TableRow key={order.id}>
+                  <TableCell>
+                    #{order.id}
+                  </TableCell>
+
+                  <TableCell>
+                    {order.client?.nom}
+                  </TableCell>
+
+                  <TableCell>
+                    {order.dateCommande}
+                  </TableCell>
+
+                  <TableCell>
+                    <Chip
+                      label={order.statut}
+                      color={getStatusColor(
+                        order.statut
+                      )}
+                      size="small"
+                    />
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </TableContainer>

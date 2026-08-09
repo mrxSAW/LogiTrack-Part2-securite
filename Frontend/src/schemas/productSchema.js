@@ -4,7 +4,9 @@ export const productSchema = yup.object({
   nom: yup
     .string()
     .trim()
-    .required('Le nom du produit est obligatoire'),
+    .required(
+      'Le nom du produit est obligatoire'
+    ),
 
   categorie: yup
     .string()
@@ -17,16 +19,20 @@ export const productSchema = yup.object({
     .required('Le prix est obligatoire')
     .moreThan(
       0,
-      'Le prix doit être supérieur à zéro',
+      'Le prix doit être supérieur à zéro'
     ),
 
   quantiteStock: yup
     .number()
-    .typeError('La quantité doit être un nombre')
+    .typeError(
+      'La quantité doit être un nombre'
+    )
     .required('La quantité est obligatoire')
-    .integer('La quantité doit être un nombre entier')
+    .integer(
+      'La quantité doit être un nombre entier'
+    )
     .min(
       0,
-      'La quantité ne peut pas être négative',
+      'La quantité ne peut pas être négative'
     ),
 })

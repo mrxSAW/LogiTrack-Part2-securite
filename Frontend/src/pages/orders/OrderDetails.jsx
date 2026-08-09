@@ -2,10 +2,12 @@ import {
   useEffect,
   useState,
 } from 'react'
+
 import {
   useNavigate,
   useParams,
 } from 'react-router-dom'
+
 import {
   Alert,
   Box,
@@ -22,6 +24,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material'
+
 import api from '../../api/axiosInstance'
 
 function getStatusLabel(status) {
@@ -57,69 +60,64 @@ function getStatusColor(status) {
 }
 
 function calculateTotal(order) {
-  const lignes = order?.lignes || []
+  let total = 0
+  const lines = order?.lignes || []
 
-  return lignes.reduce((total, ligne) => {
-    const prix = Number(
-      ligne.produit?.prix || 0,
+  for (const line of lines) {
+    const price = Number(
+      line.produit?.prix || 0
     )
 
-    const quantite = Number(
-      ligne.quantite || 0,
+    const quantity = Number(
+      line.quantite || 0
     )
 
-    return total + prix * quantite
-  }, 0)
+    total = total + price * quantity
+  }
+
+  return total
 }
 
 export default function OrderDetails() {
-  const { id } = useParams()
-  const navigate = useNavigate()
-
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [])
+  const params = useParams()
+  const navigate = useNavigate()
+
+  const orderId = params.id
 
   useEffect(() => {
-    let actif = true
-
     async function loadOrder() {
       try {
         setLoading(true)
         setError('')
 
         const response = await api.get(
-          `/api/orders/${id}`,
+          `/api/orders/${orderId}`
         )
 
-        if (actif) {
-          setOrder(response.data)
-        }
+        setOrder(response.data)
       } catch (requestError) {
-        if (actif) {
-          const message =
-            requestError.response?.data?.message ||
-            'Impossible de charger la commande'
+        const backendMessage =
+          requestError.response?.data?.message
 
-          setError(message)
-        }
+        setError(
+          backendMessage ||
+          'Impossible de charger la commande'
+        )
       } finally {
-        if (actif) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
 
     loadOrder()
+  }, [orderId])
 
-    return () => {
-      actif = false
-    }
-  }, [id])
+  function goBack() {
+    navigate('/orders')
+  }
 
   if (loading) {
     return (
@@ -144,10 +142,8 @@ export default function OrderDetails() {
 
         <Button
           variant="outlined"
-          sx={{
-            marginTop: 2,
-          }}
-          onClick={() => navigate('/orders')}
+          sx={{ marginTop: 2 }}
+          onClick={goBack}
         >
           Retour
         </Button>
@@ -163,46 +159,49 @@ export default function OrderDetails() {
     )
   }
 
+  const orderLines = order.lignes || []
+
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
+      <Typography
+        variant="h4"
+        gutterBottom
+      >
         Détails de la commande #{order.id}
       </Typography>
 
       <Typography
         color="text.secondary"
-        sx={{
-          marginBottom: 3,
-        }}
+        sx={{ marginBottom: 3 }}
       >
         Informations générales et produits de la
         commande.
       </Typography>
 
-      {/* Informations de la commande */}
       <Paper
         sx={{
           padding: 3,
           marginBottom: 3,
         }}
       >
-        <Typography variant="h6" gutterBottom>
+        <Typography
+          variant="h6"
+          gutterBottom
+        >
           Informations générales
         </Typography>
 
-        <Divider
-          sx={{
-            marginBottom: 2,
-          }}
-        />
+        <Divider sx={{ marginBottom: 2 }} />
 
         <Box
           sx={{
             display: 'grid',
+
             gridTemplateColumns: {
               xs: '1fr',
               sm: 'repeat(3, 1fr)',
             },
+
             gap: 3,
           }}
         >
@@ -232,39 +231,43 @@ export default function OrderDetails() {
             </Typography>
 
             <Chip
-              label={getStatusLabel(order.statut)}
-              color={getStatusColor(order.statut)}
+              label={getStatusLabel(
+                order.statut
+              )}
+              color={getStatusColor(
+                order.statut
+              )}
               size="small"
             />
           </Box>
         </Box>
       </Paper>
 
-      {/* Informations du client */}
       <Paper
         sx={{
           padding: 3,
           marginBottom: 3,
         }}
       >
-        <Typography variant="h6" gutterBottom>
+        <Typography
+          variant="h6"
+          gutterBottom
+        >
           Client
         </Typography>
 
-        <Divider
-          sx={{
-            marginBottom: 2,
-          }}
-        />
+        <Divider sx={{ marginBottom: 2 }} />
 
         <Box
           sx={{
             display: 'grid',
+
             gridTemplateColumns: {
               xs: '1fr',
               sm: 'repeat(2, 1fr)',
               md: 'repeat(4, 1fr)',
             },
+
             gap: 3,
           }}
         >
@@ -310,12 +313,9 @@ export default function OrderDetails() {
         </Box>
       </Paper>
 
-      {/* Produits de la commande */}
       <Typography
         variant="h6"
-        sx={{
-          marginBottom: 1,
-        }}
+        sx={{ marginBottom: 1 }}
       >
         Produits
       </Typography>
@@ -328,6 +328,7 @@ export default function OrderDetails() {
               <TableCell>Catégorie</TableCell>
               <TableCell>Prix unitaire</TableCell>
               <TableCell>Quantité</TableCell>
+
               <TableCell align="right">
                 Sous-total
               </TableCell>
@@ -335,8 +336,7 @@ export default function OrderDetails() {
           </TableHead>
 
           <TableBody>
-            {!order.lignes ||
-            order.lignes.length === 0 ? (
+            {orderLines.length === 0 && (
               <TableRow>
                 <TableCell
                   colSpan={5}
@@ -345,42 +345,41 @@ export default function OrderDetails() {
                   Aucun produit dans cette commande
                 </TableCell>
               </TableRow>
-            ) : (
-              order.lignes.map((ligne) => {
-                const prix = Number(
-                  ligne.produit?.prix || 0,
-                )
-
-                const sousTotal =
-                  prix * ligne.quantite
-
-                return (
-                  <TableRow key={ligne.id}>
-                    <TableCell>
-                      {ligne.produit?.nom ||
-                        'Produit inconnu'}
-                    </TableCell>
-
-                    <TableCell>
-                      {ligne.produit?.categorie ||
-                        '-'}
-                    </TableCell>
-
-                    <TableCell>
-                      {prix.toFixed(2)} DH
-                    </TableCell>
-
-                    <TableCell>
-                      {ligne.quantite}
-                    </TableCell>
-
-                    <TableCell align="right">
-                      {sousTotal.toFixed(2)} DH
-                    </TableCell>
-                  </TableRow>
-                )
-              })
             )}
+
+            {orderLines.map(function showLine(line) {
+              const price = Number(
+                line.produit?.prix || 0
+              )
+
+              const subtotal =
+                price * line.quantite
+
+              return (
+                <TableRow key={line.id}>
+                  <TableCell>
+                    {line.produit?.nom ||
+                      'Produit inconnu'}
+                  </TableCell>
+
+                  <TableCell>
+                    {line.produit?.categorie || '-'}
+                  </TableCell>
+
+                  <TableCell>
+                    {price.toFixed(2)} DH
+                  </TableCell>
+
+                  <TableCell>
+                    {line.quantite}
+                  </TableCell>
+
+                  <TableCell align="right">
+                    {subtotal.toFixed(2)} DH
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </TableContainer>
@@ -396,7 +395,7 @@ export default function OrderDetails() {
       >
         <Button
           variant="outlined"
-          onClick={() => navigate('/orders')}
+          onClick={goBack}
         >
           Retour
         </Button>

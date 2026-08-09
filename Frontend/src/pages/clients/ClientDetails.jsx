@@ -1,106 +1,142 @@
-import {useEffect,useState,} from 'react'
-import {Link, useNavigate,useParams,} from 'react-router-dom'
-import { Alert,Box,Button,Chip,CircularProgress, Divider,Paper,Table,TableBody,TableCell,
-        TableContainer,TableHead,TableRow,Typography,} from '@mui/material'
+import {
+  useEffect,
+  useState,
+} from 'react'
+
+import {
+  Link,
+  useNavigate,
+  useParams,
+} from 'react-router-dom'
+
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Divider,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from '@mui/material'
+
 import api from '../../api/axiosInstance'
 import useAuth from '../../context/useAuth'
 
 function getStatusLabel(status) {
-  if (status === 'EN_ATTENTE') { return 'En attente'}
+  if (status === 'EN_ATTENTE') {
+    return 'En attente'
+  }
 
-  if (status === 'EXPEDIEE') { return 'Expédiée'}
+  if (status === 'EXPEDIEE') {
+    return 'Expédiée'
+  }
 
-  if (status === 'LIVREE') {return 'Livrée'}
+  if (status === 'LIVREE') {
+    return 'Livrée'
+  }
 
   return status
 }
 
 function getStatusColor(status) {
-  if (status === 'EN_ATTENTE') { return 'warning'}
+  if (status === 'EN_ATTENTE') {
+    return 'warning'
+  }
 
-  if (status === 'EXPEDIEE') {return 'primary'}
+  if (status === 'EXPEDIEE') {
+    return 'primary'
+  }
 
-  if (status === 'LIVREE') {return 'success'}
+  if (status === 'LIVREE') {
+    return 'success'
+  }
 
   return 'default'
 }
 
 function calculateOrderTotal(order) {
-  return (order.lignes || []).reduce(
-    (total, ligne) => {
-      const prix = Number(ligne.produit?.prix || 0,)
+  let total = 0
+  const lines = order.lignes || []
 
-      return (total +prix * Number(ligne.quantite || 0))
-    },0, )
+  for (const line of lines) {
+    const price = Number(
+      line.produit?.prix || 0
+    )
+
+    const quantity = Number(
+      line.quantite || 0
+    )
+
+    total = total + price * quantity
+  }
+
+  return total
 }
 
 export default function ClientDetails() {
-  const { id } = useParams()
-  const navigate = useNavigate()
-
   const [client, setClient] = useState(null)
   const [orders, setOrders] = useState([])
-
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const { hasRole } = useAuth()
+  const params = useParams()
+  const navigate = useNavigate()
+  const auth = useAuth()
 
-  const canManage = hasRole(
+  const clientId = params.id
+
+  const canManage = auth.hasRole(
     'ADMIN',
-    'MANAGER',
+    'MANAGER'
   )
 
   useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [])
-
-  useEffect(() => {
-    let actif = true
-
-    async function loadData() {
+    async function loadClient() {
       try {
         setLoading(true)
         setError('')
 
-        const [
-          clientResponse,
-          ordersResponse,
-        ] = await Promise.all([
-          api.get(`/api/clients/${id}`),
+        const clientResponse = await api.get(
+          `/api/clients/${clientId}`
+        )
 
-          api.get('/api/orders/filter', {
+        const ordersResponse = await api.get(
+          '/api/orders/filter',
+          {
             params: {
-              clientId: id,
+              clientId,
             },
-          }),
-        ])
+          }
+        )
 
-        if (actif) {
-          setClient(clientResponse.data)
-          setOrders(ordersResponse.data)
-        }
+        setClient(clientResponse.data)
+        setOrders(ordersResponse.data)
       } catch (requestError) {
-        if (actif) {
-          const message =
-            requestError.response?.data?.message ||
-            'Impossible de charger le client'
+        const backendMessage =
+          requestError.response?.data?.message
 
-          setError(message)
-        }
+        setError(
+          backendMessage ||
+          'Impossible de charger le client'
+        )
       } finally {
-        if (actif) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
 
-    loadData()
+    loadClient()
+  }, [clientId])
 
-    return () => {
-      actif = false
-    }
-  }, [id])
+  function goBack() {
+    navigate('/clients')
+  }
 
   if (loading) {
     return (
@@ -125,10 +161,8 @@ export default function ClientDetails() {
 
         <Button
           variant="outlined"
-          sx={{
-            marginTop: 2,
-          }}
-          onClick={() => navigate('/clients')}
+          sx={{ marginTop: 2 }}
+          onClick={goBack}
         >
           Retour
         </Button>
@@ -149,21 +183,28 @@ export default function ClientDetails() {
       <Box
         sx={{
           display: 'flex',
+
           flexDirection: {
             xs: 'column',
             sm: 'row',
           },
+
           justifyContent: 'space-between',
+
           alignItems: {
             xs: 'flex-start',
             sm: 'center',
           },
+
           gap: 2,
           marginBottom: 3,
         }}
       >
         <Box>
-          <Typography variant="h4" gutterBottom>
+          <Typography
+            variant="h4"
+            gutterBottom
+          >
             Détails du client
           </Typography>
 
@@ -172,31 +213,42 @@ export default function ClientDetails() {
           </Typography>
         </Box>
 
-  {canManage && ( <Button component={Link} to={`/clients/${client.id}/edit`} variant="contained" >
-                   Modifier
-                   </Button>
+        {canManage && (
+          <Button
+            component={Link}
+            to={`/clients/${client.id}/edit`}
+            variant="contained"
+          >
+            Modifier
+          </Button>
         )}
       </Box>
 
-
-
-      {/* Informations du client */}
       <Paper
-        sx={{  padding: 3, marginBottom: 3, }} >
-        <Typography variant="h6" gutterBottom>
+        sx={{
+          padding: 3,
+          marginBottom: 3,
+        }}
+      >
+        <Typography
+          variant="h6"
+          gutterBottom
+        >
           {client.nom}
         </Typography>
 
-        <Divider
-          sx={{ marginBottom: 2, }} />
+        <Divider sx={{ marginBottom: 2 }} />
 
         <Box
-          sx={{ display: 'grid',
+          sx={{
+            display: 'grid',
+
             gridTemplateColumns: {
               xs: '1fr',
               sm: 'repeat(2, 1fr)',
               md: 'repeat(4, 1fr)',
             },
+
             gap: 3,
           }}
         >
@@ -242,8 +294,10 @@ export default function ClientDetails() {
         </Box>
       </Paper>
 
-      {/* Commandes du client */}
-      <Typography variant="h5" sx={{ marginBottom: 2, }} >
+      <Typography
+        variant="h5"
+        sx={{ marginBottom: 2 }}
+      >
         Commandes du client
       </Typography>
 
@@ -255,9 +309,11 @@ export default function ClientDetails() {
               <TableCell>Date</TableCell>
               <TableCell>Statut</TableCell>
               <TableCell>Produits</TableCell>
+
               <TableCell align="right">
                 Total
               </TableCell>
+
               <TableCell align="right">
                 Action
               </TableCell>
@@ -265,15 +321,23 @@ export default function ClientDetails() {
           </TableHead>
 
           <TableBody>
-            {orders.length === 0 ? (
+            {orders.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center">
+                <TableCell
+                  colSpan={6}
+                  align="center"
+                >
                   Ce client n’a aucune commande
                 </TableCell>
-              </TableRow> ) : (
-              orders.map((order) => (
-                
-                <TableRow  key={order.id} hover >
+              </TableRow>
+            )}
+
+            {orders.map(function showOrder(order) {
+              return (
+                <TableRow
+                  key={order.id}
+                  hover
+                >
                   <TableCell>
                     #{order.id}
                   </TableCell>
@@ -285,10 +349,10 @@ export default function ClientDetails() {
                   <TableCell>
                     <Chip
                       label={getStatusLabel(
-                        order.statut,
+                        order.statut
                       )}
                       color={getStatusColor(
-                        order.statut,
+                        order.statut
                       )}
                       size="small"
                     />
@@ -300,7 +364,7 @@ export default function ClientDetails() {
 
                   <TableCell align="right">
                     {calculateOrderTotal(
-                      order,
+                      order
                     ).toFixed(2)}{' '}
                     DH
                   </TableCell>
@@ -315,18 +379,16 @@ export default function ClientDetails() {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
+              )
+            })}
           </TableBody>
         </Table>
       </TableContainer>
 
       <Button
         variant="outlined"
-        sx={{
-          marginTop: 3,
-        }}
-        onClick={() => navigate('/clients')}
+        sx={{ marginTop: 3 }}
+        onClick={goBack}
       >
         Retour
       </Button>

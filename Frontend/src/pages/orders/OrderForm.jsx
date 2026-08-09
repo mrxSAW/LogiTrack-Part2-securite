@@ -1,58 +1,78 @@
-import {useEffect, useState,} from 'react'
+import {
+  useEffect,
+  useState,
+} from 'react'
+
 import { useNavigate } from 'react-router-dom'
-import {Box,  Button,CircularProgress,MenuItem,Paper,TextField,Typography,} from '@mui/material'
+
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  MenuItem,
+  Paper,
+  TextField,
+  Typography,
+} from '@mui/material'
+
 import api from '../../api/axiosInstance'
 
 export default function OrderForm() {
   const [clients, setClients] = useState([])
   const [clientId, setClientId] = useState('')
-  const [loadingClients, setLoadingClients] =useState(true)
-  const [submitting, setSubmitting] =useState(false)
+
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] =
+    useState(false)
+
   const [error, setError] = useState('')
+
   const navigate = useNavigate()
 
   useEffect(() => {
-    let actif = true
-
     async function loadClients() {
       try {
-        setLoadingClients(true)
+        setLoading(true)
         setError('')
 
         const response = await api.get(
-          '/api/clients',
+          '/api/clients'
         )
 
-        if (actif) {
-          setClients(response.data)
-        }
+        setClients(response.data)
       } catch (requestError) {
-        if (actif) {
-          const message =
-            requestError.response?.data?.message ||
-            'Impossible de charger les clients'
+        const backendMessage =
+          requestError.response?.data?.message
 
-          setError(message)
-        }
+        setError(
+          backendMessage ||
+          'Impossible de charger les clients'
+        )
       } finally {
-        if (actif) {
-          setLoadingClients(false)
-        }
+        setLoading(false)
       }
     }
 
     loadClients()
-
-    return () => {
-      actif = false
-    }
   }, [])
+
+  function handleClientChange(event) {
+    setClientId(event.target.value)
+  }
+
+  function cancelForm() {
+    navigate('/orders')
+  }
 
   async function handleSubmit(event) {
     event.preventDefault()
 
     if (!clientId) {
-      setError('Veuillez sélectionner un client')
+      setError(
+        'Veuillez sélectionner un client'
+      )
+
       return
     }
 
@@ -60,17 +80,27 @@ export default function OrderForm() {
       setSubmitting(true)
       setError('')
 
-      const response = await api.post('/api/orders',null,
-  {params: { clientId,},},
-)
+      const response = await api.post(
+        '/api/orders',
+        null,
+        {
+          params: {
+            clientId,
+          },
+        }
+      )
 
-navigate(  `/orders/${response.data.id}/products`,)
+      navigate(
+        `/orders/${response.data.id}/products`
+      )
     } catch (requestError) {
-      const message =
-        requestError.response?.data?.message ||
-        'Impossible de créer la commande'
+      const backendMessage =
+        requestError.response?.data?.message
 
-      setError(message)
+      setError(
+        backendMessage ||
+        'Impossible de créer la commande'
+      )
     } finally {
       setSubmitting(false)
     }
@@ -78,15 +108,16 @@ navigate(  `/orders/${response.data.id}/products`,)
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
+      <Typography
+        variant="h4"
+        gutterBottom
+      >
         Nouvelle commande
       </Typography>
 
       <Typography
         color="text.secondary"
-        sx={{
-          marginBottom: 3,
-        }}
+        sx={{ marginBottom: 3 }}
       >
         Sélectionnez le client de la commande.
       </Typography>
@@ -98,17 +129,15 @@ navigate(  `/orders/${response.data.id}/products`,)
         }}
       >
         {error && (
-          <Typography
-            color="error"
-            sx={{
-              marginBottom: 2,
-            }}
+          <Alert
+            severity="error"
+            sx={{ marginBottom: 2 }}
           >
             {error}
-          </Typography>
+          </Alert>
         )}
 
-        {loadingClients ? (
+        {loading ? (
           <Box
             sx={{
               display: 'flex',
@@ -128,30 +157,30 @@ navigate(  `/orders/${response.data.id}/products`,)
               fullWidth
               label="Client"
               value={clientId}
-              onChange={(event) =>
-                setClientId(event.target.value)
-              }
+              onChange={handleClientChange}
               disabled={
                 submitting ||
                 clients.length === 0
               }
             >
-              {clients.map((client) => (
-                <MenuItem
-                  key={client.id}
-                  value={client.id}
-                >
-                  {client.nom} — {client.email}
-                </MenuItem>
-              ))}
+              {clients.map(function showClient(
+                client
+              ) {
+                return (
+                  <MenuItem
+                    key={client.id}
+                    value={client.id}
+                  >
+                    {client.nom} — {client.email}
+                  </MenuItem>
+                )
+              })}
             </TextField>
 
             {clients.length === 0 && (
               <Typography
                 color="text.secondary"
-                sx={{
-                  marginTop: 2,
-                }}
+                sx={{ marginTop: 2 }}
               >
                 Aucun client disponible. Créez
                 d’abord un client.
@@ -170,9 +199,7 @@ navigate(  `/orders/${response.data.id}/products`,)
                 type="button"
                 variant="outlined"
                 disabled={submitting}
-                onClick={() =>
-                  navigate('/orders')
-                }
+                onClick={cancelForm}
               >
                 Annuler
               </Button>
