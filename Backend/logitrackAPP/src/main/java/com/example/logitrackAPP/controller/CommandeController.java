@@ -33,12 +33,11 @@ public class CommandeController {
     }
 
 
-    @PreAuthorize("hasAnyRole('MANAGER')")
-    @GetMapping
-    public LocalDate RetureneDateEncienne(@RequestParam Long id1, @ Long Id2){
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    @GetMapping("/compare")
+    public LocalDate RetureneDateEncienne(@RequestParam Long id1, @RequestParam Long id2){
 
-
-
+     return     service.returnerLancienne(id1,id2);
 
     }
 

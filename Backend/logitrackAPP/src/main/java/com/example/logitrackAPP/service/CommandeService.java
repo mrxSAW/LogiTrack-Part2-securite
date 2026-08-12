@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class CommandeService {
@@ -218,13 +219,18 @@ public class CommandeService {
     }
 
 
-    private Long returnerLancienne (Long id1 , long id2){
-       Commande comnde1 = repository.findById(id1);
-       Commande comonde2 = repository.findById(id2);
+    public LocalDate returnerLancienne (Long id1 , long id2){
+       Commande   comnde1 = repository.findById(id1).orElseThrow(() -> new ResourceNotFoundException( "Commande 1 introuvable" ));
+       Commande  comonde2 = repository.findById(id2).orElseThrow(() -> new ResourceNotFoundException( "Commande 2 introuvable" ));;
 
-        if(comnde1.getDateCommande()>comonde2.getDateCommande()){
-            return LocalDate co
+        if(comnde1.getDateCommande().isBefore(comonde2.getDateCommande())){
+            return  comnde1.getDateCommande();
         }
+
+
+            return comonde2.getDateCommande();
+
+
 
     }
 
