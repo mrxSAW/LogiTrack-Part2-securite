@@ -525,30 +525,16 @@ export default function Orders() {
                             )}
 
                           {nextStatus && (
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              disabled={updating}
-                              onClick={() =>
-                                changeOrderStatus(
-                                  order
-                                )
-                              }
-                            >
-                              {updating
-                                ? 'Modification...'
-                                : getStatusButtonLabel(
+                            <Button size="small" variant="outlined" disabled={updating}
+                              onClick={() => changeOrderStatus( order )} >
+                              {updating ? 'Modification...' : getStatusButtonLabel(
                                     order.statut
                                   )}
                             </Button>
                           )}
 
-                          {order.statut ===
-                            'LIVREE' && (
-                            <Typography
-                              variant="body2"
-                              color="success.main"
-                            >
+                          {order.statut ==='LIVREE' && (
+                            <Typography variant="body2" color="success.main" >
                               Terminée
                             </Typography>
                           )}

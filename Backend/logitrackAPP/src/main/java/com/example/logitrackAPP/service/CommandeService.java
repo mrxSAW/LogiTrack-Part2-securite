@@ -218,6 +218,15 @@ public class CommandeService {
     }
 
 
+    private Long returnerLancienne (Long id1 , long id2){
+       Commande comnde1 = repository.findById(id1);
+       Commande comonde2 = repository.findById(id2);
+
+        if(comnde1.getDateCommande()>comonde2.getDateCommande()){
+            return LocalDate co
+        }
+
+    }
 
 
 

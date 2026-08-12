@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -30,6 +31,19 @@ public class CommandeController {
     public ResponseEntity<Commande> createOrder(@RequestParam("clientId") Long clientId) {
         return ResponseEntity.ok(service.createOrder(clientId));
     }
+
+
+    @PreAuthorize("hasAnyRole('MANAGER')")
+    @GetMapping
+    public LocalDate RetureneDateEncienne(@RequestParam Long id1, @ Long Id2){
+
+
+
+
+    }
+
+
+
 
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @PostMapping("/{orderId}/products")
