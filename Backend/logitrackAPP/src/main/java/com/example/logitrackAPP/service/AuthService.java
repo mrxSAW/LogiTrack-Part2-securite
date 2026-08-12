@@ -53,7 +53,8 @@ public class AuthService {
                 savedUser.getNom(),
                 savedUser.getPrenom(),
                 savedUser.getEmail(),
-                savedUser.getRole()
+                savedUser.getRole(),
+                savedUser.isSuspendu()
         );
     }
 
@@ -64,19 +65,19 @@ public class AuthService {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED,
-                        "Email ou mot de passe incorrect"
-                ));
+                        HttpStatus.UNAUTHORIZED, "Email ou mot de passe incorrect"));
 
-        if (!passwordEncoder.matches(
-                request.getPassword(),
-                user.getPassword()
-        )) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Email ou mot de passe incorrect"
-            );
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword()))
+        {
+            throw new ResponseStatusException( HttpStatus.UNAUTHORIZED, "Email ou mot de passe incorrect");
         }
+
+        if (user.isSuspendu()) {
+            throw new ResponseStatusException(
+                    HttpStatus.LOCKED, "Votre compte a été suspendu. Veuillez contacter un administrateur.");
+        }
+
 
         String token = jwtService.generateToken(user);
 
@@ -85,7 +86,8 @@ public class AuthService {
                 user.getNom(),
                 user.getPrenom(),
                 user.getEmail(),
-                user.getRole()
+                user.getRole() ,
+                user.isSuspendu()
         );
 
         return new AuthResponse(

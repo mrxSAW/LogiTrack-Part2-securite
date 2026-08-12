@@ -49,6 +49,27 @@ public class UserService {
         return userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
     }
 
+
+
+    public UserResponse modifierSuspension(long id , boolean suspendu){
+
+        User user = trouverUtilisateur(id);
+
+        if (user.getRole()==Role.ADMIN && suspendu){
+            throw new BusinessException("on peut pas banire un admin ");
+        }
+
+        user.setSuspendu(suspendu);
+        User savedUser = userRepository.save(user);
+        return convertirEnResponse(savedUser);
+
+
+    }
+
+
+
+
+
     private UserResponse convertirEnResponse(User user) {
 
         return new UserResponse(
@@ -56,7 +77,8 @@ public class UserService {
                 user.getNom(),
                 user.getPrenom(),
                 user.getEmail(),
-                user.getRole()
+                user.getRole(),
+                user.isSuspendu()
         );
     }
 

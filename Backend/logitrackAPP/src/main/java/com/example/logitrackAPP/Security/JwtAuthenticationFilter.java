@@ -23,10 +23,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(
-            JwtService jwtService,
-            UserRepository userRepository
-    ) {
+    public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
     }
@@ -34,11 +31,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
-        String authorizationHeader =
-                request.getHeader("Authorization");
+        String authorizationHeader = request.getHeader("Authorization");
 
-        if (authorizationHeader == null ||
-                !authorizationHeader.startsWith("Bearer ")) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
 
             filterChain.doFilter(request, response);
             return;
@@ -49,24 +44,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String email = jwtService.extractEmail(token);
 
-            boolean notAuthenticated =
-                    SecurityContextHolder
-                            .getContext()
-                            .getAuthentication() == null;
+            boolean notAuthenticated = SecurityContextHolder.getContext().getAuthentication() == null;
 
             if (email != null && notAuthenticated) {
 
-                User user = userRepository
-                        .findByEmail(email)
-                        .orElse(null);
+                User user = userRepository.findByEmail(email).orElse(null);
 
-                if (user != null &&
-                        jwtService.isTokenValid(token, user)) {
+                if (user != null && !user.isSuspendu() &&jwtService.isTokenValid(token, user)) {
 
-                    SimpleGrantedAuthority authority =
-                            new SimpleGrantedAuthority(
-                                    "ROLE_" + user.getRole().name()
-                            );
+                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority(
+                                    "ROLE_" + user.getRole().name() );
 
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
@@ -80,9 +67,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     .buildDetails(request)
                     );
 
-                    SecurityContextHolder
-                            .getContext()
-                            .setAuthentication(authentication);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             }
 

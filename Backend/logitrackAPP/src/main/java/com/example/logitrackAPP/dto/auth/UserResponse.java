@@ -13,4 +13,6 @@ public class UserResponse {
     private String prenom;
     private String email;
     private Role role;
+    private boolean suspendu ;
+
 }

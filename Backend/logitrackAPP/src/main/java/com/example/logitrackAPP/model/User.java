@@ -4,6 +4,7 @@ package com.example.logitrackAPP.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -31,4 +32,9 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
+
+   @Column(nullable = false)
+    private boolean suspendu=false;
+
+
 }

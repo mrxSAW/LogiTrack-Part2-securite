@@ -1,6 +1,7 @@
 package com.example.logitrackAPP.controller;
 
 import com.example.logitrackAPP.dto.auth.ModifierRoleRequest;
+import com.example.logitrackAPP.dto.auth.ModifierSuspensionRequest;
 import com.example.logitrackAPP.dto.auth.UserResponse;
 import com.example.logitrackAPP.service.UserService;
 import jakarta.validation.Valid;
@@ -39,6 +40,15 @@ public class UserController {
         userService.supprimer(id);
 
         return ResponseEntity.noContent().build();
+    }
+
+
+
+    @PutMapping("/{id}/suspension")
+    public UserResponse modifierSuspension(@PathVariable Long id, @Valid @RequestBody ModifierSuspensionRequest request) {
+
+        return userService.modifierSuspension(id, request.isSuspendu()
+        );
     }
 
 

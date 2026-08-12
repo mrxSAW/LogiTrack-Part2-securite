@@ -1,58 +1,25 @@
-import {
-  useEffect,
-  useState,
-} from 'react'
+import { useEffect,useState,} from 'react'
 
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  MenuItem,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from '@mui/material'
-
+import {Alert,Box, Button,Chip,CircularProgress,MenuItem,Paper,Table,TableBody,TableCell,TableContainer,TableHead, TableRow,TextField,Typography,} from '@mui/material'
 import api from '../../api/axiosInstance'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
 import useAuth from '../../context/useAuth'
 
 function getRoleLabel(role) {
-  if (role === 'ADMIN') {
-    return 'Administrateur'
-  }
+  if (role === 'ADMIN') {return 'Administrateur'}
 
-  if (role === 'MANAGER') {
-    return 'Manager'
-  }
+  if (role === 'MANAGER') { return 'Manager'}
 
-  if (role === 'AGENT') {
-    return 'Agent'
-  }
-
+  if (role === 'AGENT') {return 'Agent'}
   return role
 }
 
 function getRoleColor(role) {
-  if (role === 'ADMIN') {
-    return 'error'
-  }
+  if (role === 'ADMIN') {return 'error'}
 
-  if (role === 'MANAGER') {
-    return 'primary'
-  }
+  if (role === 'MANAGER') {return 'primary'}
 
-  if (role === 'AGENT') {
-    return 'success'
-  }
+  if (role === 'AGENT') {return 'success'}
 
   return 'default'
 }
@@ -62,17 +29,14 @@ export default function Users() {
   const [keyword, setKeyword] = useState('')
 
   const [loading, setLoading] = useState(true)
-  const [deleting, setDeleting] =
-    useState(false)
+  const [deleting, setDeleting] =useState(false)
 
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const [updatingUserId, setUpdatingUserId] =
-    useState(null)
+  const [updatingUserId, setUpdatingUserId] =useState(null)
 
-  const [userToDelete, setUserToDelete] =
-    useState(null)
+  const [userToDelete, setUserToDelete] =useState(null)
 
   const auth = useAuth()
 
@@ -82,19 +46,13 @@ export default function Users() {
         setLoading(true)
         setError('')
 
-        const response = await api.get(
-          '/api/users'
-        )
+        const response = await api.get('/api/users' )
 
         setUsers(response.data)
       } catch (requestError) {
-        const backendMessage =
-          requestError.response?.data?.message
+        const backendMessage = requestError.response?.data?.message
 
-        setError(
-          backendMessage ||
-          'Impossible de charger les utilisateurs'
-        )
+        setError(backendMessage ||'Impossible de charger les utilisateurs')
       } finally {
         setLoading(false)
       }
@@ -104,10 +62,7 @@ export default function Users() {
   }, [])
 
   function isCurrentUser(account) {
-    return (
-      Number(account.id) ===
-      Number(auth.user?.id)
-    )
+    return ( Number(account.id) === Number(auth.user?.id))
   }
 
   function handleSearch(event) {
@@ -116,34 +71,23 @@ export default function Users() {
 
   const filteredUsers = users.filter(
     function filterUser(account) {
-      const search = keyword
-        .trim()
-        .toLowerCase()
+      const search = keyword.trim().toLowerCase()
 
       if (!search) {
         return true
       }
 
-      const fullName =
-        `${account.nom} ${account.prenom}`
-          .toLowerCase()
+      const fullName =`${account.nom} ${account.prenom}`.toLowerCase()
 
-      const email =
-        account.email?.toLowerCase() || ''
+      const email =account.email?.toLowerCase() || ''
 
-      return (
-        fullName.includes(search) ||
-        email.includes(search)
-      )
+      return (fullName.includes(search) ||email.includes(search))
     }
   )
 
   async function changeRole(account, newRole) {
     if (isCurrentUser(account)) {
-      setError(
-        'Vous ne pouvez pas modifier votre propre rôle'
-      )
-
+      setError('Vous ne pouvez pas modifier votre propre rôle')
       return
     }
 
@@ -152,8 +96,7 @@ export default function Users() {
       setError('')
       setSuccess('')
 
-      const response = await api.put(
-        `/api/users/${account.id}/role`,
+      const response = await api.put( `/api/users/${account.id}/role`,
         {
           role: newRole,
         }
@@ -162,9 +105,7 @@ export default function Users() {
       setUsers(function updateUsers(currentUsers) {
         return currentUsers.map(
           function updateAccount(currentAccount) {
-            if (
-              currentAccount.id === account.id
-            ) {
+            if (currentAccount.id === account.id) {
               return response.data
             }
 
@@ -173,17 +114,11 @@ export default function Users() {
         )
       })
 
-      setSuccess(
-        `Le rôle de ${account.nom} a été modifié`
-      )
+      setSuccess(  `Le rôle de ${account.nom} a été modifié`)
     } catch (requestError) {
-      const backendMessage =
-        requestError.response?.data?.message
+      const backendMessage =requestError.response?.data?.message
 
-      setError(
-        backendMessage ||
-        'Impossible de modifier le rôle'
-      )
+      setError(backendMessage || 'Impossible de modifier le rôle')
     } finally {
       setUpdatingUserId(null)
     }
@@ -191,9 +126,7 @@ export default function Users() {
 
   function openDeleteDialog(account) {
     if (isCurrentUser(account)) {
-      setError(
-        'Vous ne pouvez pas supprimer votre propre compte'
-      )
+      setError('Vous ne pouvez pas supprimer votre propre compte')
 
       return
     }
@@ -218,63 +151,90 @@ export default function Users() {
       setDeleting(true)
       setError('')
 
-      await api.delete(
-        `/api/users/${userToDelete.id}`
-      )
+      await api.delete(`/api/users/${userToDelete.id}`)
 
       const deletedUserId = userToDelete.id
-      const deletedUserName =
-        `${userToDelete.nom} ${userToDelete.prenom}`
+      const deletedUserName =`${userToDelete.nom} ${userToDelete.prenom}`
 
       setUsers(function removeUser(currentUsers) {
         return currentUsers.filter(
-          function keepUser(account) {
-            return account.id !== deletedUserId
-          }
+          function keepUser(account) { return account.id !== deletedUserId}
         )
       })
 
       setUserToDelete(null)
 
-      setSuccess(
-        `L’utilisateur ${deletedUserName} a été supprimé`
-      )
+      setSuccess(`L’utilisateur ${deletedUserName} a été supprimé`)
     } catch (requestError) {
-      const backendMessage =
-        requestError.response?.data?.message
+      const backendMessage =requestError.response?.data?.message
 
-      setError(
-        backendMessage ||
-        'Impossible de supprimer l’utilisateur'
-      )
+      setError(backendMessage || 'Impossible de supprimer l’utilisateur')
     } finally {
       setDeleting(false)
     }
   }
 
+
+async function changeSuspension(account) {
+  if (account.role === 'ADMIN') {
+    setError( 'Un administrateur ne peut pas être suspendu')
+
+    return
+  }
+
+  try {
+    setError('')
+    setSuccess('')
+
+    const response = await api.put(`/api/users/${account.id}/suspension`,{suspendu: !account.suspendu,})
+
+    setUsers(function updateUsers(currentUsers) {
+      return currentUsers.map(
+        function updateAccount(currentAccount) {
+          if (currentAccount.id === account.id) {
+            return response.data
+          }
+
+          return currentAccount
+        }
+      )
+    })
+
+    if (response.data.suspendu) {
+      setSuccess(
+        `Le compte de ${account.nom} a été suspendu`
+      )
+    } else {
+      setSuccess(
+        `Le compte de ${account.nom} a été réactivé`
+      )
+    }
+  } catch (requestError) {
+    setError(
+      requestError.response?.data?.message ||
+      'Impossible de modifier le compte'
+    )
+  }
+}
+
+
+
+
+
+
+
   return (
     <Box>
-      <Typography
-        variant="h4"
-        gutterBottom
-      >
+      <Typography variant="h4" gutterBottom>
         Gestion des utilisateurs
       </Typography>
 
-      <Typography
-        color="text.secondary"
-        sx={{ marginBottom: 3 }}
-      >
-        Consultez les utilisateurs et gérez leurs
-        rôles.
+      <Typography color="text.secondary" sx={{ marginBottom: 3 }}>
+        Consultez les utilisateurs et gérez leurs rôles.
       </Typography>
 
       {error && (
-        <Alert
-          severity="error"
-          onClose={() => setError('')}
-          sx={{ marginBottom: 2 }}
-        >
+        <Alert severity="error" onClose={() => setError('')} sx={{ marginBottom: 2 }} >
           {error}
         </Alert>
       )}
@@ -329,6 +289,7 @@ export default function Users() {
                     Modifier le rôle
                   </TableCell>
 
+                 
                   <TableCell align="right">
                     Actions
                   </TableCell>
@@ -338,28 +299,21 @@ export default function Users() {
               <TableBody>
                 {filteredUsers.length === 0 && (
                   <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      align="center"
-                    >
+                    <TableCell colSpan={6}align="center" >
                       Aucun utilisateur trouvé
                     </TableCell>
                   </TableRow>
                 )}
 
-                {filteredUsers.map(
-                  function showUser(account) {
-                    const currentAccount =
-                      isCurrentUser(account)
+                {filteredUsers.map(function showUser(account) {
+                    const currentAccount =  isCurrentUser(account)
 
-                    const updating =
-                      updatingUserId === account.id
+                    const updating = updatingUserId === account.id
 
                     return (
-                      <TableRow
-                        key={account.id}
-                        hover
-                      >
+                      <TableRow key={account.id} hover >
+                        
+                        
                         <TableCell>
                           <Box
                             sx={{
@@ -371,12 +325,7 @@ export default function Users() {
                             {account.nom}
 
                             {currentAccount && (
-                              <Chip
-                                label="Vous"
-                                size="small"
-                                variant="outlined"
-                              />
-                            )}
+                              <Chip label="Vous"  size="small" variant="outlined"/> )}
                           </Box>
                         </TableCell>
 
@@ -389,34 +338,16 @@ export default function Users() {
                         </TableCell>
 
                         <TableCell>
-                          <Chip
-                            label={getRoleLabel(
-                              account.role
-                            )}
-                            color={getRoleColor(
-                              account.role
-                            )}
-                            size="small"
-                          />
+                          <Chip label={getRoleLabel(account.role )} color={getRoleColor(account.role)} size="small" />
                         </TableCell>
 
                         <TableCell>
-                          <TextField
-                            select
-                            size="small"
-                            value={account.role}
-                            disabled={
-                              currentAccount ||
-                              updating
-                            }
-                            onChange={(event) =>
-                              changeRole(
-                                account,
-                                event.target.value
-                              )
-                            }
-                            sx={{ minWidth: 160 }}
-                          >
+                          <TextField select size="small" value={account.role}
+                            disabled={ currentAccount ||  updating }
+                            onChange={(event) => changeRole(account, event.target.value)}
+                            sx={{ minWidth: 160 }} >
+
+
                             <MenuItem value="ADMIN">
                               Administrateur
                             </MenuItem>
@@ -432,19 +363,22 @@ export default function Users() {
                         </TableCell>
 
                         <TableCell align="right">
-                          <Button
-                            color="error"
-                            size="small"
-                            disabled={currentAccount}
-                            onClick={() =>
-                              openDeleteDialog(
-                                account
-                              )
-                            }
-                          >
+                          <Button color="error" size="small" disabled={currentAccount} onClick={() => openDeleteDialog(account)}>
                             Supprimer
                           </Button>
-                        </TableCell>
+              
+    {account.role !== 'ADMIN' && (
+                <Button color={account.suspendu ? 'success': 'warning'} size="small"   onClick={() => changeSuspension(account) }  >
+                          {account.suspendu ? 'Réactiver': 'Suspendre'}
+                </Button> )}
+
+                          
+                       </TableCell>
+
+
+
+ 
+
                       </TableRow>
                     )
                   }
@@ -453,10 +387,7 @@ export default function Users() {
             </Table>
           </TableContainer>
 
-          <Typography
-            color="text.secondary"
-            sx={{ marginTop: 2 }}
-          >
+          <Typography  color="text.secondary" sx={{ marginTop: 2 }} >
             Total : {filteredUsers.length}{' '}
             utilisateur(s)
           </Typography>
